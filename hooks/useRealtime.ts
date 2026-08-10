@@ -15,6 +15,11 @@ export function useRealtime() {
     const client = getSSEClient();
     client.connect();
 
+    const unsubConnect = client.onConnect(() => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["company-tasks"] });
+    });
+
     const unsubTask = client.on("task:created", () => {
       qc.invalidateQueries({ queryKey: ["tasks"] });
     });
@@ -45,6 +50,7 @@ export function useRealtime() {
       unsubCoUp?.();
       unsubCoDel?.();
       unsubCoConf?.();
+      unsubConnect?.();
       client.disconnect();
     };
   }, [qc]);

@@ -5,8 +5,10 @@ type EventHandler = (payload: unknown) => void;
 export class SSEClient {
   private es: EventSource | null = null;
   private handlers = new Map<RealtimeEventType, Set<EventHandler>>();
+  private connectHandlers = new Set<() => void>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private shouldReconnect = true;
+  private reconnectDelay = 1_000;
 
   connect() {
     if (this.es) return;
@@ -16,6 +18,7 @@ export class SSEClient {
 
   disconnect() {
     this.shouldReconnect = false;
+    this.reconnectDelay = 1_000;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -34,8 +37,26 @@ export class SSEClient {
     return () => this.handlers.get(type)?.delete(handler);
   }
 
+  onConnect(handler: () => void) {
+    this.connectHandlers.add(handler);
+    return () => this.connectHandlers.delete(handler);
+  }
+
   private createConnection() {
+    if (!this.shouldReconnect) return;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
     this.es = new EventSource("/api/sse");
+
+    this.es.onopen = () => {
+      this.reconnectDelay = 1_000;
+      for (const handler of this.connectHandlers) {
+        handler();
+      }
+    };
 
     this.es.onmessage = (e) => {
       try {
@@ -52,8 +73,13 @@ export class SSEClient {
     this.es.onerror = () => {
       this.es?.close();
       this.es = null;
-      if (this.shouldReconnect) {
-        this.reconnectTimer = setTimeout(() => this.createConnection(), 3_000);
+      if (this.shouldReconnect && !this.reconnectTimer) {
+        const delay = this.reconnectDelay;
+        this.reconnectDelay = Math.min(this.reconnectDelay * 2, 15_000);
+        this.reconnectTimer = setTimeout(() => {
+          this.reconnectTimer = null;
+          this.createConnection();
+        }, delay);
       }
     };
   }

@@ -22,6 +22,10 @@ export function useTasks(ownerId: string | null, from: Date, to: Date) {
       return res.json();
     },
     staleTime: 30_000,
+    refetchOnReconnect: true,
+    refetchOnWindowFocus: true,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
   });
 }
 
