@@ -63,10 +63,10 @@ export const DayColumn = memo(function DayColumn({
   const {
     isDragging,
     isResizing,
-    draggingTaskId,
     ghostTop,
     ghostHeight,
     ghostColumn,
+    previewColor,
   } = useDragStore();
   const createTask = useCreateTask();
   const createCompanyTask = useCreateCompanyTask();
@@ -152,6 +152,8 @@ export const DayColumn = memo(function DayColumn({
         setOptimisticTasks((prev) => [...prev, optimistic]);
       }
 
+      enterResizeMode(optimisticId, "Keo thanh duoi de chinh thoi luong");
+
       try {
         if (ownerIdArg === "company") {
           const created = await createCompanyTask.mutateAsync({
@@ -183,6 +185,9 @@ export const DayColumn = memo(function DayColumn({
         }
       } catch {
         setOptimisticTasks((prev) => prev.filter((t) => t.id !== optimisticId));
+        if (resizeTaskId === optimisticId) {
+          exitResizeMode();
+        }
         throw new Error("Create failed");
       } finally {
         creatingRef.current = false;
@@ -240,7 +245,7 @@ export const DayColumn = memo(function DayColumn({
     for (const t of optimisticTasks) if (!byId.has(t.id)) byId.set(t.id, t);
     return Array.from(byId.values());
   }, [tasks, optimisticTasks]);
-  const activeTaskColor = tasks.find((t) => t.id === draggingTaskId)?.color;
+  const activeTaskColor = previewColor;
 
   return (
     <div
@@ -275,12 +280,11 @@ export const DayColumn = memo(function DayColumn({
         ghostHeight !== null &&
         !isResizing &&
         (ghostColumn === null || ghostColumn === (columnIndex ?? 0)) && (
-        <TaskGhost top={ghostTop} height={ghostHeight} color={activeTaskColor} />
+        <TaskGhost top={ghostTop} height={ghostHeight} color={activeTaskColor ?? undefined} />
       )}
 
       {/* Rendered tasks */}
       {layoutTasks(mergedTasks).map(({ task, column, totalColumns }) => {
-        const isBeingDragged = draggingTaskId === task.id;
         return (
           <CalendarTask
             key={task.id}
@@ -289,7 +293,6 @@ export const DayColumn = memo(function DayColumn({
             totalColumns={totalColumns}
             columnDate={date}
             containerRef={containerRef}
-            dimmed={isBeingDragged}
           />
         );
       })}

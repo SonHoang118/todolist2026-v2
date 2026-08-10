@@ -17,10 +17,11 @@ interface DragState {
   floatingTilt: number;
   floatingWidth: number | null;
   floatingHeight: number | null;
+  previewColor: string | null;
 }
 
 interface DragActions {
-  startDrag: (taskId: string) => void;
+  startDrag: (taskId: string, previewColor?: string) => void;
   endDrag: () => void;
   startResize: (taskId: string) => void;
   endResize: () => void;
@@ -49,9 +50,10 @@ export const useDragStore = create<DragState & DragActions>((set) => ({
   floatingTilt: 0,
   floatingWidth: null,
   floatingHeight: null,
+  previewColor: null,
 
-  startDrag: (taskId) =>
-    set({ isDragging: true, draggingTaskId: taskId }),
+  startDrag: (taskId, previewColor) =>
+    set({ isDragging: true, draggingTaskId: taskId, previewColor: previewColor ?? null }),
 
   endDrag: () =>
     set({
@@ -65,6 +67,7 @@ export const useDragStore = create<DragState & DragActions>((set) => ({
       floatingTilt: 0,
       floatingWidth: null,
       floatingHeight: null,
+      previewColor: null,
     }),
 
   startResize: (taskId) =>
@@ -101,5 +104,6 @@ export const useDragStore = create<DragState & DragActions>((set) => ({
       floatingTilt: 0,
       floatingWidth: null,
       floatingHeight: null,
+      previewColor: null,
     }),
 }));

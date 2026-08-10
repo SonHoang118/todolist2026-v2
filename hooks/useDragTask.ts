@@ -15,6 +15,7 @@ import {
 } from "@/lib/calendar/time";
 import { TaskDTO, CompanyTaskDTO } from "@/lib/types";
 import { differenceInMinutes } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface UseDragTaskOptions {
   columnDate: Date; // the day this column represents
@@ -40,6 +41,7 @@ export function useDragTask(
   } = useInteractionStore();
   const updateTask = useUpdateTask();
   const updateCompanyTask = useUpdateCompanyTask();
+  const qc = useQueryClient();
 
   const dragState = useRef<{
     startMouseY: number;
@@ -93,7 +95,7 @@ export function useDragTask(
         ghostHeight,
       };
 
-      startDrag(task.id);
+      startDrag(task.id, task.color);
       setHoldingTask(null);
       setGhost(
         (startMin / 60) * HOUR_HEIGHT,
@@ -197,6 +199,29 @@ export function useDragTask(
 
       if (!payload) return;
 
+      // Optimistic cache update to prevent visual snap-back before server response.
+      if ("ownerId" in task) {
+        qc.setQueriesData(
+          { queryKey: ["tasks"] },
+          (old: TaskDTO[] | undefined) =>
+            old?.map((t) =>
+              t.id === task.id
+                ? { ...t, startTime: payload.startTime, endTime: payload.endTime }
+                : t
+            )
+        );
+      } else {
+        qc.setQueriesData(
+          { queryKey: ["company-tasks"] },
+          (old: CompanyTaskDTO[] | undefined) =>
+            old?.map((t) =>
+              t.id === task.id
+                ? { ...t, startTime: payload.startTime, endTime: payload.endTime }
+                : t
+            )
+        );
+      }
+
       void (async () => {
         try {
           if ("ownerId" in task) {
@@ -222,6 +247,7 @@ export function useDragTask(
       showBadge,
       setHoldingTask,
       suppressCreate,
+      qc,
     ]
   );
 

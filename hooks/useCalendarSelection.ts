@@ -25,6 +25,10 @@ interface UseCalendarSelectionOptions {
   containerRef: React.RefObject<HTMLDivElement | null>;
 }
 
+function snapDown(minutes: number) {
+  return Math.floor(minutes / SNAP_MINUTES) * SNAP_MINUTES;
+}
+
 /**
  * Handles drag-to-create selection on empty calendar area.
  * Does NOT conflict with task drag because tasks call stopPropagation.
@@ -94,7 +98,7 @@ export function useCalendarSelection({
           me.clientY - startPointRef.current.y
         );
         const currentMin = getMinutesFromMouseY(me.clientY);
-        const min = snapMinutes(Math.min(startMinRef.current, currentMin));
+        const min = snapDown(Math.min(startMinRef.current, currentMin));
         const max =
           travel < 8
             ? clampMinutes(min + 60, 0, TOTAL_MINUTES)
@@ -167,7 +171,7 @@ export function useCalendarSelection({
           ? getMinutesFromMouseY(touchEnd.clientY)
           : startMinRef.current;
 
-        const min = snapMinutes(tapMin);
+        const min = snapDown(tapMin);
         const max = clampMinutes(min + 60, 0, TOTAL_MINUTES);
 
         setSelection(null);
