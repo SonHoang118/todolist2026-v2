@@ -36,6 +36,7 @@ export function useDragTask(
     enterResizeMode,
     showBadge,
     suppressTaskTap,
+    suppressCreate,
   } = useInteractionStore();
   const updateTask = useUpdateTask();
   const updateCompanyTask = useUpdateCompanyTask();
@@ -50,6 +51,8 @@ export function useDragTask(
     lastClientX: number;
     lastMoveTs: number;
     sourceColumnIndex: number;
+    targetColumnIndex: number;
+    targetDateIso: string;
     ghostWidth: number;
     ghostHeight: number;
   } | null>(null);
@@ -84,6 +87,8 @@ export function useDragTask(
         lastClientX: startClientX,
         lastMoveTs: performance.now(),
         sourceColumnIndex,
+        targetColumnIndex: sourceColumnIndex,
+        targetDateIso: columnDate.toISOString(),
         ghostWidth,
         ghostHeight,
       };
@@ -114,10 +119,22 @@ export function useDragTask(
         TOTAL_MINUTES - dragState.current.taskDurationMin
       );
 
+      const targetEl = document
+        .elementFromPoint(clientX, clientY)
+        ?.closest("[data-day-column-index]") as HTMLElement | null;
+      if (targetEl) {
+        const targetIndex = Number(targetEl.dataset.dayColumnIndex ?? "0");
+        const targetDateIso = targetEl.dataset.dayIso ?? columnDate.toISOString();
+        if (Number.isFinite(targetIndex)) {
+          dragState.current.targetColumnIndex = targetIndex;
+        }
+        dragState.current.targetDateIso = targetDateIso;
+      }
+
       setGhost(
         (clamped / 60) * HOUR_HEIGHT,
         (dragState.current.taskDurationMin / 60) * HOUR_HEIGHT,
-        dragState.current.sourceColumnIndex
+        dragState.current.targetColumnIndex
       );
 
       const now = performance.now();
@@ -154,9 +171,10 @@ export function useDragTask(
         TOTAL_MINUTES - dragState.current.taskDurationMin
       );
 
-      const newStart = minutesToDate(columnDate, clamped);
+      const targetDate = new Date(dragState.current.targetDateIso);
+      const newStart = minutesToDate(targetDate, clamped);
       const newEnd = minutesToDate(
-        columnDate,
+        targetDate,
         clamped + dragState.current.taskDurationMin
       );
 
@@ -181,6 +199,7 @@ export function useDragTask(
       clearGhost();
       endDrag();
       setHoldingTask(null);
+      suppressCreate(380);
     },
     [
       clearGhost,
@@ -191,6 +210,7 @@ export function useDragTask(
       updateCompanyTask,
       showBadge,
       setHoldingTask,
+      suppressCreate,
     ]
   );
 
@@ -268,21 +288,8 @@ export function useDragTask(
           return;
         }
 
-        const dragDistance = Math.hypot(lastClientX - startX, lastClientY - startY);
-        if (!dragStarted && dragDistance > 12) {
-          dragStarted = true;
-          beginDrag(
-            lastClientX,
-            lastClientY,
-            Number.isFinite(sourceColumnIndex) ? sourceColumnIndex : 0,
-            rect.width,
-            rect.height
-          );
-        }
-
-        if (!dragStarted) return;
-
         te.preventDefault();
+        if (!dragStarted) return;
         updateDrag(lastClientX, lastClientY);
       };
 
@@ -316,7 +323,16 @@ export function useDragTask(
 
       const timer = window.setTimeout(() => {
         longPressed = true;
+        suppressCreate(500);
         setHoldingTask(task.id);
+        dragStarted = true;
+        beginDrag(
+          lastClientX,
+          lastClientY,
+          Number.isFinite(sourceColumnIndex) ? sourceColumnIndex : 0,
+          rect.width,
+          rect.height
+        );
       }, 260);
 
       window.addEventListener("touchmove", onTouchMove, { passive: false });
@@ -331,6 +347,7 @@ export function useDragTask(
       suppressTaskTap,
       task.id,
       containerRef,
+      suppressCreate,
     ]
   );
 

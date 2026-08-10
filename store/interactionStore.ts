@@ -8,22 +8,26 @@ interface InteractionState {
   instruction: string | null;
   holdingTaskId: string | null;
   suppressedTaskTapId: string | null;
+  suppressCreateUntil: number;
   showBadge: (message: string, durationMs?: number) => void;
   enterResizeMode: (taskId: string, instruction?: string) => void;
   exitResizeMode: () => void;
   setHoldingTask: (taskId: string | null) => void;
   suppressTaskTap: (taskId: string) => void;
   consumeSuppressedTaskTap: (taskId: string) => boolean;
+  suppressCreate: (durationMs?: number) => void;
+  canCreateByTap: () => boolean;
 }
 
 let badgeTimer: ReturnType<typeof setTimeout> | null = null;
 
-export const useInteractionStore = create<InteractionState>((set) => ({
+export const useInteractionStore = create<InteractionState>((set, get) => ({
   badge: null,
   resizeTaskId: null,
   instruction: null,
   holdingTaskId: null,
   suppressedTaskTapId: null,
+  suppressCreateUntil: 0,
 
   showBadge: (message, durationMs = 1400) => {
     if (badgeTimer) {
@@ -56,4 +60,9 @@ export const useInteractionStore = create<InteractionState>((set) => ({
     set({ suppressedTaskTapId: null });
     return true;
   },
+
+  suppressCreate: (durationMs = 420) =>
+    set({ suppressCreateUntil: Date.now() + durationMs }),
+
+  canCreateByTap: () => Date.now() > get().suppressCreateUntil,
 }));

@@ -36,7 +36,17 @@ export const CalendarTask = memo(function CalendarTask({
   dimmed,
 }: CalendarTaskProps) {
   const { openEditTask, openEditCompanyTask, openConfirmDelete } = useUIStore();
-  const { isDragging, draggingTaskId, floatingX, floatingY, floatingTilt } =
+  const {
+    isDragging,
+    isResizing,
+    resizingTaskId,
+    ghostTop,
+    ghostHeight,
+    draggingTaskId,
+    floatingX,
+    floatingY,
+    floatingTilt,
+  } =
     useDragStore();
   const { floatingWidth, floatingHeight } = useDragStore();
   const {
@@ -67,6 +77,7 @@ export const CalendarTask = memo(function CalendarTask({
   const isHolding = holdingTaskId === task.id;
   const isResizeMode = resizeTaskId === task.id;
   const isGhostSource = isDragging && draggingTaskId === task.id;
+  const isLiveResizing = isResizing && resizingTaskId === task.id;
   const isAssignedPending =
     "ownerId" in task &&
     (task as TaskDTO).type === TaskType.ASSIGNED &&
@@ -138,8 +149,11 @@ export const CalendarTask = memo(function CalendarTask({
           isResizeMode && "ring-2 ring-[#ad7bff] brightness-110"
         )}
         style={{
-          top,
-          height: Math.max(height, minutesToPx(SNAP_MINUTES)),
+          top: isLiveResizing && ghostTop !== null ? ghostTop : top,
+          height:
+            isLiveResizing && ghostHeight !== null
+              ? Math.max(ghostHeight, minutesToPx(SNAP_MINUTES))
+              : Math.max(height, minutesToPx(SNAP_MINUTES)),
           left: `${leftPct + 1}%`,
           width: `${widthPct - 2}%`,
           backgroundColor: isAssignedPending ? "#0b6a4b" : task.color,
@@ -210,12 +224,6 @@ export const CalendarTask = memo(function CalendarTask({
         </div>
 
         {/* Resize handles */}
-        <TaskResizeHandle
-          edge="top"
-          onMouseDown={handleResizeMouseDown}
-          onTouchStart={handleResizeTouchStart}
-          visible={isResizeMode}
-        />
         <TaskResizeHandle
           edge="bottom"
           onMouseDown={handleResizeMouseDown}

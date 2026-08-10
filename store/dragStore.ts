@@ -22,7 +22,7 @@ interface DragState {
 interface DragActions {
   startDrag: (taskId: string) => void;
   endDrag: () => void;
-  startResize: (taskId: string, edge: "top" | "bottom") => void;
+  startResize: (taskId: string) => void;
   endResize: () => void;
   setGhost: (top: number, height: number, column?: number) => void;
   setFloatingGhost: (
@@ -67,8 +67,8 @@ export const useDragStore = create<DragState & DragActions>((set) => ({
       floatingHeight: null,
     }),
 
-  startResize: (taskId, edge) =>
-    set({ isResizing: true, resizingTaskId: taskId, resizeEdge: edge }),
+  startResize: (taskId) =>
+    set({ isResizing: true, resizingTaskId: taskId, resizeEdge: "bottom" }),
 
   endResize: () =>
     set({

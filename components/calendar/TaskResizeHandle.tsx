@@ -4,8 +4,8 @@ import React, { memo } from "react";
 
 interface TaskResizeHandleProps {
   edge: "top" | "bottom";
-  onMouseDown: (e: React.MouseEvent, edge: "top" | "bottom") => void;
-  onTouchStart?: (e: React.TouchEvent, edge: "top" | "bottom") => void;
+  onMouseDown: (e: React.MouseEvent) => void;
+  onTouchStart?: (e: React.TouchEvent) => void;
   visible?: boolean;
 }
 
@@ -24,11 +24,11 @@ export const TaskResizeHandle = memo(function TaskResizeHandle({
       `}
       onMouseDown={(e) => {
         e.stopPropagation();
-        onMouseDown(e, edge);
+        onMouseDown(e);
       }}
       onTouchStart={(e) => {
         e.stopPropagation();
-        onTouchStart?.(e, edge);
+        onTouchStart?.(e);
       }}
     >
       <div className="mx-auto mt-0.5 w-8 h-1 bg-white/50 rounded-full" />

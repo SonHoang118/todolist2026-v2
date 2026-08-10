@@ -212,6 +212,8 @@ export const DayColumn = memo(function DayColumn({
     <div
       ref={containerRef}
       data-column-index={columnIndex ?? 0}
+      data-day-column-index={columnIndex ?? 0}
+      data-day-iso={date.toISOString()}
       className={`relative flex-1 min-w-0 border-l border-white/5 select-none ${
         highlight ? "bg-[#171127]" : "bg-[#0b0b12]"
       }`}
@@ -234,6 +236,7 @@ export const DayColumn = memo(function DayColumn({
       {(isDragging || isResizing) &&
         ghostTop !== null &&
         ghostHeight !== null &&
+        !isResizing &&
         (ghostColumn === null || ghostColumn === (columnIndex ?? 0)) && (
         <TaskGhost top={ghostTop} height={ghostHeight} color={activeTaskColor} />
       )}

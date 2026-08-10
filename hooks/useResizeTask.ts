@@ -37,7 +37,6 @@ export function useResizeTask(
     startMouseY: number;
     originalStartMin: number;
     originalEndMin: number;
-    edge: "top" | "bottom";
   } | null>(null);
 
   const computeResize = useCallback((clientY: number) => {
@@ -45,26 +44,17 @@ export function useResizeTask(
 
     const deltaY = clientY - resizeState.current.startMouseY;
     const deltaMin = pxToMinutes(deltaY);
-    const { originalStartMin, originalEndMin, edge } = resizeState.current;
+    const { originalStartMin, originalEndMin } = resizeState.current;
 
     let newStartMin = originalStartMin;
     let newEndMin = originalEndMin;
 
-    if (edge === "bottom") {
-      newEndMin = snapToStep(originalEndMin + deltaMin);
-      newEndMin = clampMinutes(
-        newEndMin,
-        originalStartMin + RESIZE_STEP_MINUTES,
-        TOTAL_MINUTES
-      );
-    } else {
-      newStartMin = snapToStep(originalStartMin + deltaMin);
-      newStartMin = clampMinutes(
-        newStartMin,
-        0,
-        originalEndMin - RESIZE_STEP_MINUTES
-      );
-    }
+    newEndMin = snapToStep(originalEndMin + deltaMin);
+    newEndMin = clampMinutes(
+      newEndMin,
+      originalStartMin + RESIZE_STEP_MINUTES,
+      TOTAL_MINUTES
+    );
 
     return { newStartMin, newEndMin };
   }, []);
@@ -113,7 +103,7 @@ export function useResizeTask(
   );
 
   const handleResizeMouseDown = useCallback(
-    (e: React.MouseEvent, edge: "top" | "bottom") => {
+    (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -128,10 +118,9 @@ export function useResizeTask(
         startMouseY: e.clientY,
         originalStartMin,
         originalEndMin,
-        edge,
       };
 
-      startResize(task.id, edge);
+      startResize(task.id);
       setGhost(
         (originalStartMin / 60) * HOUR_HEIGHT,
         ((originalEndMin - originalStartMin) / 60) * HOUR_HEIGHT
@@ -161,7 +150,7 @@ export function useResizeTask(
   );
 
   const handleResizeTouchStart = useCallback(
-    (e: React.TouchEvent, edge: "top" | "bottom") => {
+    (e: React.TouchEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -179,10 +168,9 @@ export function useResizeTask(
         startMouseY: touch.clientY,
         originalStartMin,
         originalEndMin,
-        edge,
       };
 
-      startResize(task.id, edge);
+      startResize(task.id);
       setGhost(
         (originalStartMin / 60) * HOUR_HEIGHT,
         ((originalEndMin - originalStartMin) / 60) * HOUR_HEIGHT

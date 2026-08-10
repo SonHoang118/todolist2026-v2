@@ -9,6 +9,8 @@ import {
   TOTAL_MINUTES,
   SNAP_MINUTES,
 } from "@/lib/calendar/time";
+import { useInteractionStore } from "@/store/interactionStore";
+import { useDragStore } from "@/store/dragStore";
 
 interface SelectionState {
   startMin: number;
@@ -36,6 +38,9 @@ export function useCalendarSelection({
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const startMinRef = useRef<number | null>(null);
   const startPointRef = useRef<{ x: number; y: number } | null>(null);
+  const canCreateByTap = useInteractionStore((s) => s.canCreateByTap);
+  const resizeTaskId = useInteractionStore((s) => s.resizeTaskId);
+  const { isDragging, isResizing } = useDragStore();
 
   const getMinutesFromMouseY = useCallback(
     (clientY: number) => {
@@ -50,6 +55,7 @@ export function useCalendarSelection({
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      if (isDragging || isResizing || resizeTaskId || !canCreateByTap()) return;
       if (e.button !== 0) return;
       startPointRef.current = { x: e.clientX, y: e.clientY };
       const startMin = getMinutesFromMouseY(e.clientY);
@@ -106,11 +112,21 @@ export function useCalendarSelection({
       window.addEventListener("mousemove", onMouseMove);
       window.addEventListener("mouseup", onMouseUp);
     },
-    [getMinutesFromMouseY, columnDate, ownerId, onSelect]
+    [
+      getMinutesFromMouseY,
+      columnDate,
+      ownerId,
+      onSelect,
+      isDragging,
+      isResizing,
+      resizeTaskId,
+      canCreateByTap,
+    ]
   );
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
+      if (isDragging || isResizing || resizeTaskId || !canCreateByTap()) return;
       const touch = e.touches[0];
       if (!touch) return;
       startPointRef.current = { x: touch.clientX, y: touch.clientY };
@@ -166,7 +182,16 @@ export function useCalendarSelection({
       window.addEventListener("touchmove", onTouchMove, { passive: false });
       window.addEventListener("touchend", onTouchEnd);
     },
-    [getMinutesFromMouseY, columnDate, ownerId, onSelect]
+    [
+      getMinutesFromMouseY,
+      columnDate,
+      ownerId,
+      onSelect,
+      isDragging,
+      isResizing,
+      resizeTaskId,
+      canCreateByTap,
+    ]
   );
 
   return { selection, handleMouseDown, handleTouchStart };
