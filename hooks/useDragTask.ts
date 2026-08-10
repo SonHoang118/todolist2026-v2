@@ -49,6 +49,9 @@ export function useDragTask(
     tilt: number;
     lastClientX: number;
     lastMoveTs: number;
+    sourceColumnIndex: number;
+    ghostWidth: number;
+    ghostHeight: number;
   } | null>(null);
 
   const getTaskMinutes = useCallback(() => {
@@ -63,7 +66,13 @@ export function useDragTask(
   }, [task.startTime, task.endTime]);
 
   const beginDrag = useCallback(
-    (startClientX: number, startClientY: number) => {
+    (
+      startClientX: number,
+      startClientY: number,
+      sourceColumnIndex: number,
+      ghostWidth: number,
+      ghostHeight: number
+    ) => {
       const { startMin, durationMin } = getTaskMinutes();
       dragState.current = {
         startMouseY: startClientY,
@@ -74,12 +83,19 @@ export function useDragTask(
         tilt: 0,
         lastClientX: startClientX,
         lastMoveTs: performance.now(),
+        sourceColumnIndex,
+        ghostWidth,
+        ghostHeight,
       };
 
       startDrag(task.id);
       setHoldingTask(null);
-      setGhost((startMin / 60) * HOUR_HEIGHT, (durationMin / 60) * HOUR_HEIGHT);
-      setFloatingGhost(startClientX, startClientY, 0);
+      setGhost(
+        (startMin / 60) * HOUR_HEIGHT,
+        (durationMin / 60) * HOUR_HEIGHT,
+        sourceColumnIndex
+      );
+      setFloatingGhost(startClientX, startClientY, 0, ghostWidth, ghostHeight);
     },
     [getTaskMinutes, startDrag, task.id, setGhost, setFloatingGhost, setHoldingTask]
   );
@@ -107,12 +123,18 @@ export function useDragTask(
       const dt = Math.max(now - dragState.current.lastMoveTs, 8);
       const dx = clientX - dragState.current.lastClientX;
       const vx = Math.abs(dx) < 1.8 ? 0 : dx / dt;
-      const targetTilt = Math.max(-12, Math.min(12, vx * 140));
-      dragState.current.tilt = dragState.current.tilt * 0.82 + targetTilt * 0.18;
+      const targetTilt = Math.max(-6, Math.min(6, vx * 90));
+      dragState.current.tilt = dragState.current.tilt * 0.88 + targetTilt * 0.12;
       dragState.current.lastClientX = clientX;
       dragState.current.lastMoveTs = now;
 
-      setFloatingGhost(clientX, clientY, dragState.current.tilt);
+      setFloatingGhost(
+        clientX,
+        clientY,
+        dragState.current.tilt,
+        dragState.current.ghostWidth,
+        dragState.current.ghostHeight
+      );
     },
     [containerRef, setGhost, setFloatingGhost]
   );
@@ -175,7 +197,18 @@ export function useDragTask(
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      beginDrag(e.clientX, e.clientY);
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const sourceColumnIndex = Number(
+        containerRef.current?.dataset.columnIndex ?? "0"
+      );
+
+      beginDrag(
+        e.clientX,
+        e.clientY,
+        Number.isFinite(sourceColumnIndex) ? sourceColumnIndex : 0,
+        rect.width,
+        rect.height
+      );
 
       const onMouseMove = (me: MouseEvent) => {
         updateDrag(me.clientX, me.clientY);
@@ -199,9 +232,14 @@ export function useDragTask(
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
-      e.stopPropagation();
       const firstTouch = e.touches[0];
       if (!firstTouch) return;
+
+      const sourceElement = e.currentTarget as HTMLElement;
+      const rect = sourceElement.getBoundingClientRect();
+      const sourceColumnIndex = Number(
+        containerRef.current?.dataset.columnIndex ?? "0"
+      );
 
       let longPressed = false;
       let dragStarted = false;
@@ -232,7 +270,13 @@ export function useDragTask(
         const dragDistance = Math.hypot(lastClientX - startX, lastClientY - startY);
         if (!dragStarted && dragDistance > 12) {
           dragStarted = true;
-          beginDrag(lastClientX, lastClientY);
+          beginDrag(
+            lastClientX,
+            lastClientY,
+            Number.isFinite(sourceColumnIndex) ? sourceColumnIndex : 0,
+            rect.width,
+            rect.height
+          );
         }
 
         if (!dragStarted) return;
@@ -285,6 +329,7 @@ export function useDragTask(
       enterResizeMode,
       suppressTaskTap,
       task.id,
+      containerRef,
     ]
   );
 

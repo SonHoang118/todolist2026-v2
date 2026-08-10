@@ -38,6 +38,7 @@ export const CalendarTask = memo(function CalendarTask({
   const { openEditTask, openEditCompanyTask, openConfirmDelete } = useUIStore();
   const { isDragging, draggingTaskId, floatingX, floatingY, floatingTilt } =
     useDragStore();
+  const { floatingWidth, floatingHeight } = useDragStore();
   const {
     resizeTaskId,
     holdingTaskId,
@@ -225,15 +226,17 @@ export const CalendarTask = memo(function CalendarTask({
 
       {isGhostSource && floatingX !== null && floatingY !== null && (
         <div
-          className="fixed z-50 pointer-events-none w-44 rounded-xl border border-white/20 bg-[#0b6a4b] text-white shadow-[0_12px_30px_rgba(0,0,0,0.45)]"
+          className="fixed z-50 pointer-events-none rounded-xl border border-white/20 bg-[#0b6a4b] text-white shadow-[0_10px_24px_rgba(0,0,0,0.40)]"
           style={{
-            left: floatingX - 84,
-            top: floatingY - 26,
-            transform: `rotate(${floatingTilt.toFixed(2)}deg) scale(1.04)`,
+            width: floatingWidth ?? undefined,
+            height: floatingHeight ?? undefined,
+            left: floatingX - (floatingWidth ?? 120) / 2,
+            top: floatingY - (floatingHeight ?? 40) / 2,
+            transform: `rotate(${floatingTilt.toFixed(2)}deg) scale(1.015)`,
             transformOrigin: "center center",
           }}
         >
-          <div className="px-2.5 py-2">
+          <div className="px-2 py-1.5 h-full flex flex-col">
             <p className="text-xs font-semibold truncate">{task.title}</p>
             <p className="text-[10px] text-white/80 truncate mt-0.5">
               {formatTime(new Date(task.startTime))} – {formatTime(new Date(task.endTime))}

@@ -2,13 +2,10 @@
 
 import React, { memo, useCallback, useRef } from "react";
 import {
-  HOUR_HEIGHT,
   TOTAL_MINUTES,
-  getTaskTop,
-  getTaskHeight,
   minutesToPx,
 } from "@/lib/calendar/time";
-import { layoutTasks, LayoutTask } from "@/lib/calendar/layout";
+import { layoutTasks } from "@/lib/calendar/layout";
 import { TaskDTO, CompanyTaskDTO } from "@/lib/types";
 import { CalendarTask } from "./CalendarTask";
 import { TaskGhost } from "./TaskGhost";
@@ -48,6 +45,7 @@ interface DayColumnProps {
   isCurrentUser: boolean;
   highlight?: boolean;
   dayWidth?: number;
+  columnIndex?: number;
 }
 
 export const DayColumn = memo(function DayColumn({
@@ -57,10 +55,17 @@ export const DayColumn = memo(function DayColumn({
   isCurrentUser,
   highlight,
   dayWidth,
+  columnIndex,
 }: DayColumnProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { isDragging, isResizing, draggingTaskId, ghostTop, ghostHeight } =
-    useDragStore();
+  const {
+    isDragging,
+    isResizing,
+    draggingTaskId,
+    ghostTop,
+    ghostHeight,
+    ghostColumn,
+  } = useDragStore();
   const createTask = useCreateTask();
   const createCompanyTask = useCreateCompanyTask();
   const creatingRef = useRef(false);
@@ -125,10 +130,12 @@ export const DayColumn = memo(function DayColumn({
   });
 
   const layouted = layoutTasks(tasks);
+  const activeTaskColor = tasks.find((t) => t.id === draggingTaskId)?.color;
 
   return (
     <div
       ref={containerRef}
+      data-column-index={columnIndex ?? 0}
       className={`relative flex-1 min-w-0 border-l border-white/5 select-none ${
         highlight ? "bg-[#171127]" : "bg-[#0b0b12]"
       }`}
@@ -148,8 +155,11 @@ export const DayColumn = memo(function DayColumn({
       )}
 
       {/* Task ghost during drag/resize */}
-      {(isDragging || isResizing) && ghostTop !== null && ghostHeight !== null && (
-        <TaskGhost top={ghostTop} height={ghostHeight} />
+      {(isDragging || isResizing) &&
+        ghostTop !== null &&
+        ghostHeight !== null &&
+        (ghostColumn === null || ghostColumn === (columnIndex ?? 0)) && (
+        <TaskGhost top={ghostTop} height={ghostHeight} color={activeTaskColor} />
       )}
 
       {/* Rendered tasks */}

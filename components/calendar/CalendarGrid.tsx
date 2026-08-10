@@ -11,6 +11,7 @@ import { format, isToday } from "date-fns";
 import { TaskDTO, CompanyTaskDTO } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { addDays, endOfDay, startOfDay } from "date-fns";
+import { useDragStore } from "@/store/dragStore";
 
 const DAY_BUFFER = 90;
 const TIME_COL_WIDTH = 48;
@@ -28,6 +29,7 @@ export const CalendarGrid = memo(function CalendarGrid() {
   } = useCalendarStore();
   const { data: currentUser } = useCurrentUser();
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const dragLockedScrollRef = useRef<number | null>(null);
   const isRecenteringRef = useRef(false);
   const pinchStateRef = useRef<{
     startDistance: number;
@@ -37,6 +39,7 @@ export const CalendarGrid = memo(function CalendarGrid() {
   } | null>(null);
 
   const isCompanyCalendar = selectedUserId === null;
+  const { isDragging } = useDragStore();
 
   const baseDate = useMemo(() => startOfDay(currentDate), [currentDate]);
 
@@ -83,9 +86,27 @@ export const CalendarGrid = memo(function CalendarGrid() {
     el.scrollLeft = Math.max(0, targetLeft);
   }, []);
 
+  useEffect(() => {
+    if (!scrollerRef.current) return;
+
+    if (isDragging) {
+      dragLockedScrollRef.current = scrollerRef.current.scrollLeft;
+      return;
+    }
+
+    dragLockedScrollRef.current = null;
+  }, [isDragging]);
+
   const handleHorizontalScroll = () => {
     const el = scrollerRef.current;
     if (!el || isRecenteringRef.current) return;
+
+    if (isDragging && dragLockedScrollRef.current !== null) {
+      if (Math.abs(el.scrollLeft - dragLockedScrollRef.current) > 0.5) {
+        el.scrollLeft = dragLockedScrollRef.current;
+      }
+      return;
+    }
 
     const viewportCenterX = el.scrollLeft + el.clientWidth / 2 - TIME_COL_WIDTH;
     const centerDayIndex = Math.round(viewportCenterX / dayColumnWidth);
@@ -112,6 +133,7 @@ export const CalendarGrid = memo(function CalendarGrid() {
   };
 
   const handlePinchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (isDragging) return;
     if (e.touches.length !== 2 || !scrollerRef.current) return;
     const [a, b] = [e.touches[0], e.touches[1]];
     const startDistance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
@@ -127,6 +149,7 @@ export const CalendarGrid = memo(function CalendarGrid() {
   };
 
   const handlePinchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (isDragging) return;
     if (e.touches.length !== 2 || !scrollerRef.current || !pinchStateRef.current) return;
 
     e.preventDefault();
@@ -184,7 +207,7 @@ export const CalendarGrid = memo(function CalendarGrid() {
       {/* Scrollable grid */}
       <div
         ref={scrollerRef}
-        className="flex-1 overflow-auto"
+        className={`flex-1 overflow-auto ${isDragging ? "touch-none" : ""}`}
         onScroll={handleHorizontalScroll}
         onTouchStart={handlePinchStart}
         onTouchMove={handlePinchMove}
@@ -194,7 +217,7 @@ export const CalendarGrid = memo(function CalendarGrid() {
           <div className="sticky left-0 z-30">
             <TimeColumn />
           </div>
-          {days.map((day) => {
+          {days.map((day, dayIndex) => {
             const dayTasks = (isCompanyCalendar ? companyTasks : userTasks).filter(
               (t) => {
                 const start = new Date(t.startTime);
@@ -216,6 +239,7 @@ export const CalendarGrid = memo(function CalendarGrid() {
                 isCurrentUser={viewUserId === currentUser?.id}
                 highlight={isToday(day)}
                 dayWidth={dayColumnWidth}
+                columnIndex={dayIndex}
               />
             );
           })}
