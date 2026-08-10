@@ -32,12 +32,25 @@ export async function GET(req: NextRequest) {
 
   if (!ownerId) return apiError("ownerId is required");
 
+  const fromDate = from ? new Date(from) : null;
+  const toDate = to ? new Date(to) : null;
+
+  if ((from && Number.isNaN(fromDate?.getTime())) || (to && Number.isNaN(toDate?.getTime()))) {
+    return apiError("Invalid date format for from/to", 400);
+  }
+
   // Visibility rules
   const tasks = await prisma.task.findMany({
     where: {
       ownerId,
-      startTime: from ? { gte: new Date(from) } : undefined,
-      endTime: to ? { lte: new Date(to) } : undefined,
+      ...(fromDate || toDate
+        ? {
+            AND: [
+              fromDate ? { endTime: { gte: fromDate } } : {},
+              toDate ? { startTime: { lte: toDate } } : {},
+            ],
+          }
+        : {}),
       // Hide Personal tasks that don't belong to the viewer
       ...(ownerId !== currentUser.id
         ? { label: { not: TaskLabel.PERSONAL } }

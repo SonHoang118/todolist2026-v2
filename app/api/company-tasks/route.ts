@@ -42,8 +42,14 @@ export async function GET(req: NextRequest) {
 
     const tasks = await prisma.companyTask.findMany({
       where: {
-        startTime: fromDate ? { gte: fromDate } : undefined,
-        endTime: toDate ? { lte: toDate } : undefined,
+        ...(fromDate || toDate
+          ? {
+              AND: [
+                fromDate ? { endTime: { gte: fromDate } } : {},
+                toDate ? { startTime: { lte: toDate } } : {},
+              ],
+            }
+          : {}),
       },
       include: COMPANY_TASK_INCLUDE,
       orderBy: { startTime: "asc" },

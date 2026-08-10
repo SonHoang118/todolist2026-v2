@@ -9,8 +9,8 @@ function taskKeys(ownerId: string, from: string, to: string) {
 }
 
 export function useTasks(ownerId: string | null, from: Date, to: Date) {
-  const fromStr = format(from, "yyyy-MM-dd'T'HH:mm:ss");
-  const toStr = format(to, "yyyy-MM-dd'T'HH:mm:ss");
+  const fromStr = from.toISOString();
+  const toStr = to.toISOString();
 
   return useQuery<TaskDTO[]>({
     queryKey: ["tasks", ownerId, fromStr, toStr],

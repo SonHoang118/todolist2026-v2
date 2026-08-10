@@ -6,7 +6,6 @@ import {
   CreateCompanyTaskInput,
   UpdateCompanyTaskInput,
 } from "@/lib/types";
-import { format } from "date-fns";
 
 async function getErrorMessage(res: Response, fallback: string) {
   const contentType = res.headers.get("content-type") || "";
@@ -29,8 +28,8 @@ async function getErrorMessage(res: Response, fallback: string) {
 }
 
 export function useCompanyTasks(from: Date, to: Date) {
-  const fromStr = format(from, "yyyy-MM-dd'T'HH:mm:ss");
-  const toStr = format(to, "yyyy-MM-dd'T'HH:mm:ss");
+  const fromStr = from.toISOString();
+  const toStr = to.toISOString();
 
   return useQuery<CompanyTaskDTO[]>({
     queryKey: ["company-tasks", fromStr, toStr],
