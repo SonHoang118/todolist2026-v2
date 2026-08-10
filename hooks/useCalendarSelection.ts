@@ -36,6 +36,7 @@ export function useCalendarSelection({
 }: UseCalendarSelectionOptions) {
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const startMinRef = useRef<number | null>(null);
+  const startPointRef = useRef<{ x: number; y: number } | null>(null);
 
   const getMinutesFromMouseY = useCallback(
     (clientY: number) => {
@@ -51,6 +52,7 @@ export function useCalendarSelection({
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (e.button !== 0) return;
+      startPointRef.current = { x: e.clientX, y: e.clientY };
       const startMin = getMinutesFromMouseY(e.clientY);
       startMinRef.current = startMin;
 
@@ -58,6 +60,14 @@ export function useCalendarSelection({
 
       const onMouseMove = (me: MouseEvent) => {
         if (startMinRef.current === null) return;
+        if (!startPointRef.current) return;
+
+        const distance = Math.hypot(
+          me.clientX - startPointRef.current.x,
+          me.clientY - startPointRef.current.y
+        );
+        if (distance < 8) return;
+
         const currentMin = getMinutesFromMouseY(me.clientY);
         const min = Math.min(startMinRef.current, currentMin);
         const max = Math.max(
@@ -72,14 +82,22 @@ export function useCalendarSelection({
         window.removeEventListener("mouseup", onMouseUp);
 
         if (startMinRef.current === null) return;
+        if (!startPointRef.current) return;
+
+        const travel = Math.hypot(
+          me.clientX - startPointRef.current.x,
+          me.clientY - startPointRef.current.y
+        );
         const currentMin = getMinutesFromMouseY(me.clientY);
         const min = snapMinutes(Math.min(startMinRef.current, currentMin));
-        const max = snapMinutes(
-          Math.max(startMinRef.current + SNAP_MINUTES, currentMin)
-        );
+        const max =
+          travel < 8
+            ? clampMinutes(min + 60, 0, TOTAL_MINUTES)
+            : snapMinutes(Math.max(startMinRef.current + SNAP_MINUTES, currentMin));
 
         setSelection(null);
         startMinRef.current = null;
+        startPointRef.current = null;
 
         const start = minutesToDate(columnDate, min);
         const end = minutesToDate(columnDate, max);
@@ -96,6 +114,7 @@ export function useCalendarSelection({
     (e: React.TouchEvent) => {
       const touch = e.touches[0];
       if (!touch) return;
+      startPointRef.current = { x: touch.clientX, y: touch.clientY };
 
       const startMin = getMinutesFromMouseY(touch.clientY);
       startMinRef.current = startMin;
@@ -104,8 +123,24 @@ export function useCalendarSelection({
 
       const onTouchMove = (te: TouchEvent) => {
         if (startMinRef.current === null) return;
+        if (!startPointRef.current) return;
         const nextTouch = te.touches[0];
         if (!nextTouch) return;
+
+        const dx = Math.abs(nextTouch.clientX - startPointRef.current.x);
+        const dy = Math.abs(nextTouch.clientY - startPointRef.current.y);
+        const travel = Math.hypot(dx, dy);
+        if (travel < 8) return;
+
+        if (dx > dy) {
+          // Treat as horizontal timeline scroll. Cancel pending tap/select.
+          setSelection(null);
+          startMinRef.current = null;
+          startPointRef.current = null;
+          window.removeEventListener("touchmove", onTouchMove);
+          window.removeEventListener("touchend", onTouchEnd);
+          return;
+        }
 
         te.preventDefault();
         const currentMin = getMinutesFromMouseY(nextTouch.clientY);
@@ -119,18 +154,28 @@ export function useCalendarSelection({
         window.removeEventListener("touchend", onTouchEnd);
 
         if (startMinRef.current === null) return;
+        if (!startPointRef.current) return;
         const touchEnd = te.changedTouches[0];
         const currentMin = touchEnd
           ? getMinutesFromMouseY(touchEnd.clientY)
           : startMinRef.current + SNAP_MINUTES;
 
+        const travel = touchEnd
+          ? Math.hypot(
+              touchEnd.clientX - startPointRef.current.x,
+              touchEnd.clientY - startPointRef.current.y
+            )
+          : 0;
+
         const min = snapMinutes(Math.min(startMinRef.current, currentMin));
-        const max = snapMinutes(
-          Math.max(startMinRef.current + SNAP_MINUTES, currentMin)
-        );
+        const max =
+          travel < 8
+            ? clampMinutes(min + 60, 0, TOTAL_MINUTES)
+            : snapMinutes(Math.max(startMinRef.current + SNAP_MINUTES, currentMin));
 
         setSelection(null);
         startMinRef.current = null;
+        startPointRef.current = null;
 
         const start = minutesToDate(columnDate, min);
         const end = minutesToDate(columnDate, max);

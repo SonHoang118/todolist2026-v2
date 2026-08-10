@@ -8,9 +8,12 @@ interface CalendarState {
   view: CalendarView;
   currentDate: Date;
   selectedUserId: string | null; // null = company calendar
+  dayColumnWidth: number;
+  viewportResetToken: number;
 
   setView: (view: CalendarView) => void;
   setCurrentDate: (date: Date) => void;
+  setDayColumnWidth: (width: number) => void;
   navigateNext: () => void;
   navigatePrev: () => void;
   navigateToday: () => void;
@@ -21,9 +24,13 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
   view: "week",
   currentDate: new Date(),
   selectedUserId: null,
+  dayColumnWidth: 100,
+  viewportResetToken: 0,
 
   setView: (view) => set({ view }),
   setCurrentDate: (date) => set({ currentDate: date }),
+  setDayColumnWidth: (width) =>
+    set({ dayColumnWidth: Math.max(72, Math.min(180, width)) }),
 
   navigateNext: () => {
     const { view, currentDate } = get();
@@ -43,7 +50,11 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     });
   },
 
-  navigateToday: () => set({ currentDate: new Date() }),
+  navigateToday: () =>
+    set((state) => ({
+      currentDate: new Date(),
+      viewportResetToken: state.viewportResetToken + 1,
+    })),
 
   selectUser: (userId) => set({ selectedUserId: userId }),
 }));

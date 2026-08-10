@@ -4,6 +4,7 @@ import React from "react";
 import { useCalendarStore } from "@/store/calendarStore";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
+import { useInteractionStore } from "@/store/interactionStore";
 
 interface CalendarHeaderProps {
   onOpenSettings: () => void;
@@ -12,11 +13,12 @@ interface CalendarHeaderProps {
 export function CalendarHeader({ onOpenSettings }: CalendarHeaderProps) {
   const { currentDate, navigateNext, navigatePrev, navigateToday } =
     useCalendarStore();
+  const { badge, instruction, showBadge } = useInteractionStore();
 
   const title = format(currentDate, "EEEE, d/M/yyyy", { locale: vi });
 
   return (
-    <header className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-[#0a0b12] text-white">
+    <header className="relative flex items-center justify-between px-3 py-2 border-b border-white/10 bg-[#0a0b12] text-white">
       <div className="flex items-center gap-2 min-w-0">
         <button
           onClick={navigatePrev}
@@ -40,7 +42,10 @@ export function CalendarHeader({ onOpenSettings }: CalendarHeaderProps) {
 
       <div className="flex items-center gap-2">
         <button
-          onClick={navigateToday}
+          onClick={() => {
+            navigateToday();
+            showBadge("Da reset ve moc hien tai");
+          }}
           className="px-3 h-8 rounded-full text-xs font-semibold text-white/90 bg-[#6b2eea]"
         >
           Reset view
@@ -67,6 +72,12 @@ export function CalendarHeader({ onOpenSettings }: CalendarHeaderProps) {
           </svg>
         </button>
       </div>
+
+      {(instruction || badge) && (
+        <div className="absolute left-1/2 -translate-x-1/2 top-11 px-3 py-1.5 rounded-full bg-[#7b3ef0]/90 text-white text-xs font-medium shadow-[0_10px_20px_rgba(0,0,0,0.35)] animate-[fadein_.16s_ease-out]">
+          {badge || instruction}
+        </div>
+      )}
     </header>
   );
 }

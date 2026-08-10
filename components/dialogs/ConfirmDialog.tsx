@@ -27,8 +27,8 @@ export function ConfirmDialog() {
   }, [confirmDeleteId, confirmDeleteType, deleteTask, deleteCompanyTask, closeDialog]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={closeDialog}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-semibold text-gray-900 mb-2">Delete Task</h2>
         <p className="text-sm text-gray-600 mb-6">
           Are you sure you want to delete this task? This action cannot be undone.

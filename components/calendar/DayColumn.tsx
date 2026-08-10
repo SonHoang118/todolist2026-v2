@@ -17,6 +17,7 @@ import { useDragStore } from "@/store/dragStore";
 import { useCalendarSelection } from "@/hooks/useCalendarSelection";
 import { useCreateTask } from "@/hooks/useTasks";
 import { useCreateCompanyTask } from "@/hooks/useCompanyTasks";
+import { useInteractionStore } from "@/store/interactionStore";
 
 const QUICK_TASK_TITLES = [
   "Di khao sat cong trinh",
@@ -46,6 +47,7 @@ interface DayColumnProps {
   ownerId: string; // userId or "company"
   isCurrentUser: boolean;
   highlight?: boolean;
+  dayWidth?: number;
 }
 
 export const DayColumn = memo(function DayColumn({
@@ -54,6 +56,7 @@ export const DayColumn = memo(function DayColumn({
   ownerId,
   isCurrentUser,
   highlight,
+  dayWidth,
 }: DayColumnProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { isDragging, isResizing, draggingTaskId, ghostTop, ghostHeight } =
@@ -61,9 +64,16 @@ export const DayColumn = memo(function DayColumn({
   const createTask = useCreateTask();
   const createCompanyTask = useCreateCompanyTask();
   const creatingRef = useRef(false);
+  const { resizeTaskId, exitResizeMode, enterResizeMode, showBadge } =
+    useInteractionStore();
 
   const handleSelect = useCallback(
     async (startTime: Date, endTime: Date, ownerIdArg: string) => {
+      if (resizeTaskId) {
+        exitResizeMode();
+        return;
+      }
+
       if (creatingRef.current) return;
       creatingRef.current = true;
 
@@ -72,15 +82,17 @@ export const DayColumn = memo(function DayColumn({
 
       try {
         if (ownerIdArg === "company") {
-          await createCompanyTask.mutateAsync({
+          const created = await createCompanyTask.mutateAsync({
             title,
             description,
             color: "#0c6f4f",
             startTime: startTime.toISOString(),
             endTime: endTime.toISOString(),
           });
+          enterResizeMode(created.id, "Keo thanh duoi de chinh thoi luong");
+          showBadge("Da tao task moi");
         } else {
-          await createTask.mutateAsync({
+          const created = await createTask.mutateAsync({
             title,
             description,
             color: "#0c6f4f",
@@ -88,12 +100,21 @@ export const DayColumn = memo(function DayColumn({
             endTime: endTime.toISOString(),
             ownerId: ownerIdArg,
           });
+          enterResizeMode(created.id, "Keo thanh duoi de chinh thoi luong");
+          showBadge("Da tao task moi");
         }
       } finally {
         creatingRef.current = false;
       }
     },
-    [createTask, createCompanyTask]
+    [
+      createTask,
+      createCompanyTask,
+      resizeTaskId,
+      exitResizeMode,
+      enterResizeMode,
+      showBadge,
+    ]
   );
 
   const { selection, handleMouseDown, handleTouchStart } = useCalendarSelection({
@@ -111,7 +132,7 @@ export const DayColumn = memo(function DayColumn({
       className={`relative flex-1 min-w-0 border-l border-white/5 select-none ${
         highlight ? "bg-[#171127]" : "bg-[#0b0b12]"
       }`}
-      style={{ height: minutesToPx(TOTAL_MINUTES) }}
+      style={{ height: minutesToPx(TOTAL_MINUTES), width: dayWidth ?? 100, flex: "0 0 auto" }}
     >
       <GridBackground onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} />
 

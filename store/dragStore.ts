@@ -12,6 +12,9 @@ interface DragState {
   ghostTop: number | null;
   ghostHeight: number | null;
   ghostColumn: number | null;
+  floatingX: number | null;
+  floatingY: number | null;
+  floatingTilt: number;
 }
 
 interface DragActions {
@@ -20,6 +23,7 @@ interface DragActions {
   startResize: (taskId: string, edge: "top" | "bottom") => void;
   endResize: () => void;
   setGhost: (top: number, height: number, column?: number) => void;
+  setFloatingGhost: (x: number, y: number, tilt?: number) => void;
   clearGhost: () => void;
 }
 
@@ -32,6 +36,9 @@ export const useDragStore = create<DragState & DragActions>((set) => ({
   ghostTop: null,
   ghostHeight: null,
   ghostColumn: null,
+  floatingX: null,
+  floatingY: null,
+  floatingTilt: 0,
 
   startDrag: (taskId) =>
     set({ isDragging: true, draggingTaskId: taskId }),
@@ -43,6 +50,9 @@ export const useDragStore = create<DragState & DragActions>((set) => ({
       ghostTop: null,
       ghostHeight: null,
       ghostColumn: null,
+      floatingX: null,
+      floatingY: null,
+      floatingTilt: 0,
     }),
 
   startResize: (taskId, edge) =>
@@ -60,6 +70,16 @@ export const useDragStore = create<DragState & DragActions>((set) => ({
   setGhost: (top, height, column) =>
     set({ ghostTop: top, ghostHeight: height, ghostColumn: column ?? null }),
 
+  setFloatingGhost: (x, y, tilt = 0) =>
+    set({ floatingX: x, floatingY: y, floatingTilt: tilt }),
+
   clearGhost: () =>
-    set({ ghostTop: null, ghostHeight: null, ghostColumn: null }),
+    set({
+      ghostTop: null,
+      ghostHeight: null,
+      ghostColumn: null,
+      floatingX: null,
+      floatingY: null,
+      floatingTilt: 0,
+    }),
 }));

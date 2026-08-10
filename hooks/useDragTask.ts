@@ -4,6 +4,7 @@ import { useCallback, useRef } from "react";
 import { useDragStore } from "@/store/dragStore";
 import { useUpdateTask } from "@/hooks/useTasks";
 import { useUpdateCompanyTask } from "@/hooks/useCompanyTasks";
+import { useInteractionStore } from "@/store/interactionStore";
 import {
   pxToMinutes,
   snapMinutes,
@@ -29,14 +30,25 @@ export function useDragTask(
   task: TaskDTO | CompanyTaskDTO,
   { columnDate, containerRef }: UseDragTaskOptions
 ) {
-  const { startDrag, endDrag, setGhost, clearGhost } = useDragStore();
+  const { startDrag, endDrag, setGhost, clearGhost, setFloatingGhost } = useDragStore();
+  const {
+    setHoldingTask,
+    enterResizeMode,
+    showBadge,
+    suppressTaskTap,
+  } = useInteractionStore();
   const updateTask = useUpdateTask();
   const updateCompanyTask = useUpdateCompanyTask();
 
   const dragState = useRef<{
     startMouseY: number;
+    startMouseX: number;
     taskStartMin: number;
     taskDurationMin: number;
+    dragStarted: boolean;
+    tilt: number;
+    lastClientX: number;
+    lastMoveTs: number;
   } | null>(null);
 
   const getTaskMinutes = useCallback(() => {
@@ -51,22 +63,29 @@ export function useDragTask(
   }, [task.startTime, task.endTime]);
 
   const beginDrag = useCallback(
-    (startClientY: number) => {
+    (startClientX: number, startClientY: number) => {
       const { startMin, durationMin } = getTaskMinutes();
       dragState.current = {
         startMouseY: startClientY,
+        startMouseX: startClientX,
         taskStartMin: startMin,
         taskDurationMin: durationMin,
+        dragStarted: true,
+        tilt: 0,
+        lastClientX: startClientX,
+        lastMoveTs: performance.now(),
       };
 
       startDrag(task.id);
+      setHoldingTask(null);
       setGhost((startMin / 60) * HOUR_HEIGHT, (durationMin / 60) * HOUR_HEIGHT);
+      setFloatingGhost(startClientX, startClientY, 0);
     },
-    [getTaskMinutes, startDrag, task.id, setGhost]
+    [getTaskMinutes, startDrag, task.id, setGhost, setFloatingGhost, setHoldingTask]
   );
 
   const updateDrag = useCallback(
-    (clientY: number) => {
+    (clientX: number, clientY: number) => {
       if (!dragState.current || !containerRef.current) return;
 
       const deltaY = clientY - dragState.current.startMouseY;
@@ -83,8 +102,19 @@ export function useDragTask(
         (clamped / 60) * HOUR_HEIGHT,
         (dragState.current.taskDurationMin / 60) * HOUR_HEIGHT
       );
+
+      const now = performance.now();
+      const dt = Math.max(now - dragState.current.lastMoveTs, 8);
+      const dx = clientX - dragState.current.lastClientX;
+      const vx = Math.abs(dx) < 1.8 ? 0 : dx / dt;
+      const targetTilt = Math.max(-12, Math.min(12, vx * 140));
+      dragState.current.tilt = dragState.current.tilt * 0.82 + targetTilt * 0.18;
+      dragState.current.lastClientX = clientX;
+      dragState.current.lastMoveTs = now;
+
+      setFloatingGhost(clientX, clientY, dragState.current.tilt);
     },
-    [containerRef, setGhost]
+    [containerRef, setGhost, setFloatingGhost]
   );
 
   const commitDrag = useCallback(
@@ -118,23 +148,37 @@ export function useDragTask(
         } else {
           await updateCompanyTask.mutateAsync({ id: task.id, data: payload });
         }
+
+        showBadge(
+          `Da dat lich moi ${newStart.toLocaleDateString("vi-VN")} ${newStart.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
+        );
       }
 
       dragState.current = null;
       clearGhost();
       endDrag();
+      setHoldingTask(null);
     },
-    [clearGhost, endDrag, columnDate, task, updateTask, updateCompanyTask]
+    [
+      clearGhost,
+      endDrag,
+      columnDate,
+      task,
+      updateTask,
+      updateCompanyTask,
+      showBadge,
+      setHoldingTask,
+    ]
   );
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      beginDrag(e.clientY);
+      beginDrag(e.clientX, e.clientY);
 
       const onMouseMove = (me: MouseEvent) => {
-        updateDrag(me.clientY);
+        updateDrag(me.clientX, me.clientY);
       };
 
       const onMouseUp = async (me: MouseEvent) => {
@@ -160,37 +204,64 @@ export function useDragTask(
       if (!firstTouch) return;
 
       let longPressed = false;
+      let dragStarted = false;
+      let movedTooMuchBeforeHold = false;
+      let startX = firstTouch.clientX;
       let lastClientY = firstTouch.clientY;
+      let lastClientX = firstTouch.clientX;
       const startY = firstTouch.clientY;
 
       const onTouchMove = (te: TouchEvent) => {
         const touch = te.touches[0];
         if (!touch) return;
+        lastClientX = touch.clientX;
         lastClientY = touch.clientY;
 
         if (!longPressed) {
-          if (Math.abs(lastClientY - startY) > 8) {
+          const dy = Math.abs(lastClientY - startY);
+          const dx = Math.abs(lastClientX - startX);
+          if (dy > 8 || dx > 8) {
+            movedTooMuchBeforeHold = true;
             clearTimeout(timer);
+            setHoldingTask(null);
             cleanup();
           }
           return;
         }
 
+        const dragDistance = Math.hypot(lastClientX - startX, lastClientY - startY);
+        if (!dragStarted && dragDistance > 12) {
+          dragStarted = true;
+          beginDrag(lastClientX, lastClientY);
+        }
+
+        if (!dragStarted) return;
+
         te.preventDefault();
-        updateDrag(lastClientY);
+        updateDrag(lastClientX, lastClientY);
       };
 
       const onTouchEnd = async (te: TouchEvent) => {
         clearTimeout(timer);
         const changed = te.changedTouches[0];
         if (changed) {
+          lastClientX = changed.clientX;
           lastClientY = changed.clientY;
         }
         cleanup();
 
-        if (!longPressed) return;
+        if (!longPressed || movedTooMuchBeforeHold) return;
+
+        suppressTaskTap(task.id);
         te.preventDefault();
-        await commitDrag(lastClientY);
+
+        if (dragStarted) {
+          await commitDrag(lastClientY);
+          return;
+        }
+
+        setHoldingTask(null);
+        enterResizeMode(task.id, "Keo thanh duoi de doi thoi luong");
       };
 
       const cleanup = () => {
@@ -200,13 +271,21 @@ export function useDragTask(
 
       const timer = window.setTimeout(() => {
         longPressed = true;
-        beginDrag(lastClientY);
+        setHoldingTask(task.id);
       }, 260);
 
       window.addEventListener("touchmove", onTouchMove, { passive: false });
       window.addEventListener("touchend", onTouchEnd);
     },
-    [beginDrag, updateDrag, commitDrag]
+    [
+      beginDrag,
+      updateDrag,
+      commitDrag,
+      setHoldingTask,
+      enterResizeMode,
+      suppressTaskTap,
+      task.id,
+    ]
   );
 
   return { handleMouseDown, handleTouchStart };
