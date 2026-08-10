@@ -72,7 +72,13 @@ export const DayColumn = memo(function DayColumn({
   const createCompanyTask = useCreateCompanyTask();
   const creatingRef = useRef(false);
   const [optimisticTasks, setOptimisticTasks] = useState<Array<TaskDTO | CompanyTaskDTO>>([]);
-  const { resizeTaskId, exitResizeMode, enterResizeMode, showBadge } =
+  const {
+    resizeTaskId,
+    exitResizeMode,
+    enterResizeMode,
+    showBadge,
+    suppressCreate,
+  } =
     useInteractionStore();
 
   useEffect(() => {
@@ -200,6 +206,34 @@ export const DayColumn = memo(function DayColumn({
     containerRef,
   });
 
+  const handleBackgroundMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (resizeTaskId) {
+        e.preventDefault();
+        e.stopPropagation();
+        exitResizeMode();
+        suppressCreate(280);
+        return;
+      }
+      handleMouseDown(e);
+    },
+    [resizeTaskId, exitResizeMode, suppressCreate, handleMouseDown]
+  );
+
+  const handleBackgroundTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (resizeTaskId) {
+        e.preventDefault();
+        e.stopPropagation();
+        exitResizeMode();
+        suppressCreate(280);
+        return;
+      }
+      handleTouchStart(e);
+    },
+    [resizeTaskId, exitResizeMode, suppressCreate, handleTouchStart]
+  );
+
   const mergedTasks = useMemo(() => {
     const byId = new Map<string, TaskDTO | CompanyTaskDTO>();
     for (const t of tasks) byId.set(t.id, t);
@@ -219,7 +253,10 @@ export const DayColumn = memo(function DayColumn({
       }`}
       style={{ height: minutesToPx(TOTAL_MINUTES), width: dayWidth ?? 100, flex: "0 0 auto" }}
     >
-      <GridBackground onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} />
+      <GridBackground
+        onMouseDown={handleBackgroundMouseDown}
+        onTouchStart={handleBackgroundTouchStart}
+      />
 
       {/* Selection preview */}
       {selection && (

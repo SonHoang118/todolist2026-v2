@@ -161,50 +161,61 @@ export function useDragTask(
     async (clientY: number) => {
       if (!dragState.current) return;
 
-      const deltaY = clientY - dragState.current.startMouseY;
+      const state = dragState.current;
+
+      const deltaY = clientY - state.startMouseY;
       const deltaMin = pxToMinutes(deltaY);
-      const rawStart = dragState.current.taskStartMin + deltaMin;
+      const rawStart = state.taskStartMin + deltaMin;
       const snapped = snapMinutes(rawStart);
       const clamped = clampMinutes(
         snapped,
         0,
-        TOTAL_MINUTES - dragState.current.taskDurationMin
+        TOTAL_MINUTES - state.taskDurationMin
       );
 
-      const targetDate = new Date(dragState.current.targetDateIso);
+      const targetDate = new Date(state.targetDateIso);
       const newStart = minutesToDate(targetDate, clamped);
       const newEnd = minutesToDate(
         targetDate,
-        clamped + dragState.current.taskDurationMin
+        clamped + state.taskDurationMin
       );
 
-      if (newStart.getTime() !== new Date(task.startTime).getTime()) {
-        const payload = {
-          startTime: newStart.toISOString(),
-          endTime: newEnd.toISOString(),
-        };
+      const hasMoved = newStart.getTime() !== new Date(task.startTime).getTime();
+      const payload = hasMoved
+        ? {
+            startTime: newStart.toISOString(),
+            endTime: newEnd.toISOString(),
+          }
+        : null;
 
-        if ("ownerId" in task) {
-          await updateTask.mutateAsync({ id: task.id, data: payload });
-        } else {
-          await updateCompanyTask.mutateAsync({ id: task.id, data: payload });
-        }
-
-        showBadge(
-          `Da dat lich moi ${newStart.toLocaleDateString("vi-VN")} ${newStart.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
-        );
-      }
-
+      // Clear interaction layers before network work to prevent freeze feeling.
       dragState.current = null;
       clearGhost();
       endDrag();
       setHoldingTask(null);
       suppressCreate(380);
+
+      if (!payload) return;
+
+      void (async () => {
+        try {
+          if ("ownerId" in task) {
+            await updateTask.mutateAsync({ id: task.id, data: payload });
+          } else {
+            await updateCompanyTask.mutateAsync({ id: task.id, data: payload });
+          }
+
+          showBadge(
+            `Da dat lich moi ${newStart.toLocaleDateString("vi-VN")} ${newStart.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`
+          );
+        } catch {
+          showBadge("Khong the cap nhat vi tri task");
+        }
+      })();
     },
     [
       clearGhost,
       endDrag,
-      columnDate,
       task,
       updateTask,
       updateCompanyTask,
@@ -288,6 +299,18 @@ export function useDragTask(
           return;
         }
 
+        const dragDistance = Math.hypot(lastClientX - startX, lastClientY - startY);
+        if (!dragStarted && dragDistance > 12) {
+          dragStarted = true;
+          beginDrag(
+            lastClientX,
+            lastClientY,
+            Number.isFinite(sourceColumnIndex) ? sourceColumnIndex : 0,
+            rect.width,
+            rect.height
+          );
+        }
+
         te.preventDefault();
         if (!dragStarted) return;
         updateDrag(lastClientX, lastClientY);
@@ -325,14 +348,6 @@ export function useDragTask(
         longPressed = true;
         suppressCreate(500);
         setHoldingTask(task.id);
-        dragStarted = true;
-        beginDrag(
-          lastClientX,
-          lastClientY,
-          Number.isFinite(sourceColumnIndex) ? sourceColumnIndex : 0,
-          rect.width,
-          rect.height
-        );
       }, 260);
 
       window.addEventListener("touchmove", onTouchMove, { passive: false });

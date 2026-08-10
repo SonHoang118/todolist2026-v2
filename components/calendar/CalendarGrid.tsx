@@ -39,7 +39,7 @@ export const CalendarGrid = memo(function CalendarGrid() {
   } | null>(null);
 
   const isCompanyCalendar = selectedUserId === null;
-  const { isDragging } = useDragStore();
+  const { isDragging, isResizing } = useDragStore();
 
   const baseDate = useMemo(() => startOfDay(currentDate), [currentDate]);
 
@@ -89,19 +89,19 @@ export const CalendarGrid = memo(function CalendarGrid() {
   useEffect(() => {
     if (!scrollerRef.current) return;
 
-    if (isDragging) {
+    if (isDragging || isResizing) {
       dragLockedScrollRef.current = scrollerRef.current.scrollLeft;
       return;
     }
 
     dragLockedScrollRef.current = null;
-  }, [isDragging]);
+  }, [isDragging, isResizing]);
 
   const handleHorizontalScroll = () => {
     const el = scrollerRef.current;
     if (!el || isRecenteringRef.current) return;
 
-    if (isDragging && dragLockedScrollRef.current !== null) {
+    if ((isDragging || isResizing) && dragLockedScrollRef.current !== null) {
       if (Math.abs(el.scrollLeft - dragLockedScrollRef.current) > 0.5) {
         el.scrollLeft = dragLockedScrollRef.current;
       }
@@ -133,7 +133,7 @@ export const CalendarGrid = memo(function CalendarGrid() {
   };
 
   const handlePinchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (isDragging) return;
+    if (isDragging || isResizing) return;
     if (e.touches.length !== 2 || !scrollerRef.current) return;
     const [a, b] = [e.touches[0], e.touches[1]];
     const startDistance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
@@ -149,7 +149,7 @@ export const CalendarGrid = memo(function CalendarGrid() {
   };
 
   const handlePinchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (isDragging) return;
+    if (isDragging || isResizing) return;
     if (e.touches.length !== 2 || !scrollerRef.current || !pinchStateRef.current) return;
 
     e.preventDefault();
@@ -207,7 +207,7 @@ export const CalendarGrid = memo(function CalendarGrid() {
       {/* Scrollable grid */}
       <div
         ref={scrollerRef}
-        className={`flex-1 ${isDragging ? "overflow-hidden touch-none" : "overflow-auto"}`}
+        className={`flex-1 ${(isDragging || isResizing) ? "overflow-hidden touch-none" : "overflow-auto"}`}
         onScroll={handleHorizontalScroll}
         onTouchStart={handlePinchStart}
         onTouchMove={handlePinchMove}
