@@ -116,7 +116,8 @@ export function useDragTask(
 
       setGhost(
         (clamped / 60) * HOUR_HEIGHT,
-        (dragState.current.taskDurationMin / 60) * HOUR_HEIGHT
+        (dragState.current.taskDurationMin / 60) * HOUR_HEIGHT,
+        dragState.current.sourceColumnIndex
       );
 
       const now = performance.now();

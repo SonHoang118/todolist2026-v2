@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useCallback, useRef } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   TOTAL_MINUTES,
   minutesToPx,
@@ -15,6 +15,7 @@ import { useCalendarSelection } from "@/hooks/useCalendarSelection";
 import { useCreateTask } from "@/hooks/useTasks";
 import { useCreateCompanyTask } from "@/hooks/useCompanyTasks";
 import { useInteractionStore } from "@/store/interactionStore";
+import { useCurrentUser } from "@/hooks/useAuth";
 
 const QUICK_TASK_TITLES = [
   "Di khao sat cong trinh",
@@ -58,6 +59,7 @@ export const DayColumn = memo(function DayColumn({
   columnIndex,
 }: DayColumnProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { data: currentUser } = useCurrentUser();
   const {
     isDragging,
     isResizing,
@@ -69,8 +71,13 @@ export const DayColumn = memo(function DayColumn({
   const createTask = useCreateTask();
   const createCompanyTask = useCreateCompanyTask();
   const creatingRef = useRef(false);
+  const [optimisticTasks, setOptimisticTasks] = useState<Array<TaskDTO | CompanyTaskDTO>>([]);
   const { resizeTaskId, exitResizeMode, enterResizeMode, showBadge } =
     useInteractionStore();
+
+  useEffect(() => {
+    setOptimisticTasks((prev) => prev.filter((t) => !tasks.some((x) => x.id === t.id)));
+  }, [tasks]);
 
   const handleSelect = useCallback(
     async (startTime: Date, endTime: Date, ownerIdArg: string) => {
@@ -84,6 +91,60 @@ export const DayColumn = memo(function DayColumn({
 
       const title = pickRandom(QUICK_TASK_TITLES);
       const description = "Nhan de chinh sua chi tiet sau khi tao";
+      const optimisticId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      if (ownerIdArg === "company") {
+        const optimistic: CompanyTaskDTO = {
+          id: optimisticId,
+          title,
+          description,
+          color: "#0c6f4f",
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          createdById: currentUser?.id || "me",
+          createdBy: {
+            id: currentUser?.id || "me",
+            name: currentUser?.name || "You",
+            email: currentUser?.email || "me@local",
+            avatarUrl: currentUser?.avatarUrl || null,
+          },
+          updatedById: currentUser?.id || "me",
+          updatedBy: {
+            id: currentUser?.id || "me",
+            name: currentUser?.name || "You",
+            email: currentUser?.email || "me@local",
+            avatarUrl: currentUser?.avatarUrl || null,
+          },
+          confirms: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setOptimisticTasks((prev) => [...prev, optimistic]);
+      } else {
+        const optimistic: TaskDTO = {
+          id: optimisticId,
+          title,
+          description,
+          color: "#0c6f4f",
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          status: "PENDING",
+          label: "DEFAULT",
+          type: "PERSONAL",
+          ownerId: ownerIdArg,
+          owner: {
+            id: currentUser?.id || ownerIdArg,
+            name: currentUser?.name || "You",
+            email: currentUser?.email || "me@local",
+            avatarUrl: currentUser?.avatarUrl || null,
+          },
+          assignerId: null,
+          assigner: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setOptimisticTasks((prev) => [...prev, optimistic]);
+      }
 
       try {
         if (ownerIdArg === "company") {
@@ -94,6 +155,9 @@ export const DayColumn = memo(function DayColumn({
             startTime: startTime.toISOString(),
             endTime: endTime.toISOString(),
           });
+          setOptimisticTasks((prev) =>
+            prev.map((t) => (t.id === optimisticId ? created : t))
+          );
           enterResizeMode(created.id, "Keo thanh duoi de chinh thoi luong");
           showBadge("Da tao task moi");
         } else {
@@ -105,9 +169,15 @@ export const DayColumn = memo(function DayColumn({
             endTime: endTime.toISOString(),
             ownerId: ownerIdArg,
           });
+          setOptimisticTasks((prev) =>
+            prev.map((t) => (t.id === optimisticId ? created : t))
+          );
           enterResizeMode(created.id, "Keo thanh duoi de chinh thoi luong");
           showBadge("Da tao task moi");
         }
+      } catch {
+        setOptimisticTasks((prev) => prev.filter((t) => t.id !== optimisticId));
+        throw new Error("Create failed");
       } finally {
         creatingRef.current = false;
       }
@@ -119,6 +189,7 @@ export const DayColumn = memo(function DayColumn({
       exitResizeMode,
       enterResizeMode,
       showBadge,
+      currentUser,
     ]
   );
 
@@ -129,7 +200,12 @@ export const DayColumn = memo(function DayColumn({
     containerRef,
   });
 
-  const layouted = layoutTasks(tasks);
+  const mergedTasks = useMemo(() => {
+    const byId = new Map<string, TaskDTO | CompanyTaskDTO>();
+    for (const t of tasks) byId.set(t.id, t);
+    for (const t of optimisticTasks) if (!byId.has(t.id)) byId.set(t.id, t);
+    return Array.from(byId.values());
+  }, [tasks, optimisticTasks]);
   const activeTaskColor = tasks.find((t) => t.id === draggingTaskId)?.color;
 
   return (
@@ -163,7 +239,7 @@ export const DayColumn = memo(function DayColumn({
       )}
 
       {/* Rendered tasks */}
-      {layouted.map(({ task, column, totalColumns }) => {
+      {layoutTasks(mergedTasks).map(({ task, column, totalColumns }) => {
         const isBeingDragged = draggingTaskId === task.id;
         return (
           <CalendarTask

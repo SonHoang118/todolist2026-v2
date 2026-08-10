@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { addDays, endOfDay, startOfDay } from "date-fns";
 import { useDragStore } from "@/store/dragStore";
 
-const DAY_BUFFER = 90;
+const DAY_BUFFER = 45;
 const TIME_COL_WIDTH = 48;
 const MIN_DAY_WIDTH = 72;
 const MAX_DAY_WIDTH = 180;
@@ -207,7 +207,7 @@ export const CalendarGrid = memo(function CalendarGrid() {
       {/* Scrollable grid */}
       <div
         ref={scrollerRef}
-        className={`flex-1 overflow-auto ${isDragging ? "touch-none" : ""}`}
+        className={`flex-1 ${isDragging ? "overflow-hidden touch-none" : "overflow-auto"}`}
         onScroll={handleHorizontalScroll}
         onTouchStart={handlePinchStart}
         onTouchMove={handlePinchMove}
