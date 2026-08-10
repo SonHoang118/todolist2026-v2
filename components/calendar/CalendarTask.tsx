@@ -13,7 +13,7 @@ import { useDragTask } from "@/hooks/useDragTask";
 import { useResizeTask } from "@/hooks/useResizeTask";
 import { useUIStore } from "@/store/uiStore";
 import { TaskResizeHandle } from "./TaskResizeHandle";
-import { TaskStatus } from "@prisma/client";
+import { TaskStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const STATUS_OPACITY: Record<TaskStatus, string> = {

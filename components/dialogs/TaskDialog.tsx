@@ -5,7 +5,7 @@ import { useUIStore } from "@/store/uiStore";
 import { useCreateTask, useUpdateTask, useDeleteTask } from "@/hooks/useTasks";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { TaskDTO } from "@/lib/types";
-import { TaskLabel, TaskStatus, TaskType } from "@prisma/client";
+import { TaskLabel, TaskStatus, TaskType } from "@/lib/types";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 

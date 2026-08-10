@@ -1,4 +1,22 @@
-import { TaskStatus, TaskLabel, TaskType } from "@prisma/client";
+// Plain const enums — safe to import in both server and client components
+export const TaskStatus = {
+  PENDING: "PENDING",
+  ACCEPTED: "ACCEPTED",
+  DONE: "DONE",
+} as const;
+export type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];
+
+export const TaskLabel = {
+  PERSONAL: "PERSONAL",
+  DEFAULT: "DEFAULT",
+} as const;
+export type TaskLabel = (typeof TaskLabel)[keyof typeof TaskLabel];
+
+export const TaskType = {
+  PERSONAL: "PERSONAL",
+  ASSIGNED: "ASSIGNED",
+} as const;
+export type TaskType = (typeof TaskType)[keyof typeof TaskType];
 
 export interface UserPublic {
   id: string;

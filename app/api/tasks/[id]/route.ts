@@ -8,7 +8,7 @@ import {
   apiNotFound,
 } from "@/lib/api-helpers";
 import { broadcast } from "@/lib/realtime/sse-server";
-import { TaskStatus, TaskType } from "@prisma/client";
+import { TaskStatus, TaskType } from "@/lib/types";
 import { NextRequest } from "next/server";
 import { UpdateTaskInput } from "@/lib/types";
 

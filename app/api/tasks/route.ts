@@ -7,7 +7,7 @@ import {
   apiForbidden,
 } from "@/lib/api-helpers";
 import { broadcast } from "@/lib/realtime/sse-server";
-import { TaskLabel, TaskType } from "@prisma/client";
+import { TaskLabel, TaskType } from "@/lib/types";
 import { NextRequest } from "next/server";
 import { CreateTaskInput } from "@/lib/types";
 
