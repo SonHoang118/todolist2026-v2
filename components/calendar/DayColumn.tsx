@@ -15,13 +15,37 @@ import { TaskGhost } from "./TaskGhost";
 import { GridBackground } from "./GridBackground";
 import { useDragStore } from "@/store/dragStore";
 import { useCalendarSelection } from "@/hooks/useCalendarSelection";
-import { useUIStore } from "@/store/uiStore";
+import { useCreateTask } from "@/hooks/useTasks";
+import { useCreateCompanyTask } from "@/hooks/useCompanyTasks";
+
+const QUICK_TASK_TITLES = [
+  "Di khao sat cong trinh",
+  "Di gap khach hang",
+  "Hop checklist tien do",
+  "Kiem tra vat tu dau vao",
+  "Nghiem thu hang muc A",
+  "Chot lich thi cong",
+  "Ra soat bao gia",
+  "Hop dieu phoi doi thi cong",
+  "Xu ly phat sinh tai cong truong",
+  "Theo doi ke hoach do be tong",
+  "Lam viec voi nha thau phu",
+  "Cap nhat bien ban hien truong",
+  "Do dac va chup anh bao cao",
+  "Kiem tra an toan lao dong",
+  "Tong hop cong viec cuoi ngay",
+];
+
+function pickRandom<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
 
 interface DayColumnProps {
   date: Date;
   tasks: Array<TaskDTO | CompanyTaskDTO>;
   ownerId: string; // userId or "company"
   isCurrentUser: boolean;
+  highlight?: boolean;
 }
 
 export const DayColumn = memo(function DayColumn({
@@ -29,20 +53,50 @@ export const DayColumn = memo(function DayColumn({
   tasks,
   ownerId,
   isCurrentUser,
+  highlight,
 }: DayColumnProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { isDragging, isResizing, draggingTaskId, ghostTop, ghostHeight } =
     useDragStore();
-  const { openCreateTask } = useUIStore();
+  const createTask = useCreateTask();
+  const createCompanyTask = useCreateCompanyTask();
+  const creatingRef = useRef(false);
 
   const handleSelect = useCallback(
-    (startTime: Date, endTime: Date, ownerIdArg: string) => {
-      openCreateTask({ startTime, endTime, ownerId: ownerIdArg });
+    async (startTime: Date, endTime: Date, ownerIdArg: string) => {
+      if (creatingRef.current) return;
+      creatingRef.current = true;
+
+      const title = pickRandom(QUICK_TASK_TITLES);
+      const description = "Nhan de chinh sua chi tiet sau khi tao";
+
+      try {
+        if (ownerIdArg === "company") {
+          await createCompanyTask.mutateAsync({
+            title,
+            description,
+            color: "#0c6f4f",
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+          });
+        } else {
+          await createTask.mutateAsync({
+            title,
+            description,
+            color: "#0c6f4f",
+            startTime: startTime.toISOString(),
+            endTime: endTime.toISOString(),
+            ownerId: ownerIdArg,
+          });
+        }
+      } finally {
+        creatingRef.current = false;
+      }
     },
-    [openCreateTask]
+    [createTask, createCompanyTask]
   );
 
-  const { selection, handleMouseDown } = useCalendarSelection({
+  const { selection, handleMouseDown, handleTouchStart } = useCalendarSelection({
     columnDate: date,
     ownerId,
     onSelect: handleSelect,
@@ -54,15 +108,17 @@ export const DayColumn = memo(function DayColumn({
   return (
     <div
       ref={containerRef}
-      className="relative flex-1 min-w-0 border-l border-gray-100 select-none"
+      className={`relative flex-1 min-w-0 border-l border-white/5 select-none ${
+        highlight ? "bg-[#171127]" : "bg-[#0b0b12]"
+      }`}
       style={{ height: minutesToPx(TOTAL_MINUTES) }}
     >
-      <GridBackground onMouseDown={handleMouseDown} />
+      <GridBackground onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} />
 
       {/* Selection preview */}
       {selection && (
         <div
-          className="absolute left-0 right-0 bg-blue-100 border border-blue-400 opacity-70 z-10 pointer-events-none rounded"
+          className="absolute left-0 right-0 bg-[#9158ff]/35 border border-[#9f62ff] opacity-90 z-10 pointer-events-none rounded"
           style={{
             top: minutesToPx(selection.startMin),
             height: minutesToPx(selection.endMin - selection.startMin),

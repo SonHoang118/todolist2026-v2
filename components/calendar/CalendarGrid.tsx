@@ -7,15 +7,7 @@ import { useTasks } from "@/hooks/useTasks";
 import { useCompanyTasks } from "@/hooks/useCompanyTasks";
 import { DayColumn } from "./DayColumn";
 import { TimeColumn } from "./TimeColumn";
-import {
-  getWeekDays,
-  getDayRange,
-  getWeekRange,
-  formatDateHeader,
-  TOTAL_MINUTES,
-  minutesToPx,
-  HOUR_HEIGHT,
-} from "@/lib/calendar/time";
+import { getWeekDays, getDayRange, getWeekRange } from "@/lib/calendar/time";
 import { format, isToday } from "date-fns";
 import { TaskDTO, CompanyTaskDTO } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -48,30 +40,28 @@ export const CalendarGrid = memo(function CalendarGrid() {
     [view, currentDate]
   );
 
-  const totalHeight = minutesToPx(TOTAL_MINUTES);
-
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
+    <div className="flex flex-col flex-1 overflow-hidden bg-[#0b0b12]">
       {/* Header row */}
-      <div className="flex border-b border-gray-200 bg-white z-10">
-        <div className="w-16 flex-shrink-0" />
+      <div className="flex border-b border-white/10 bg-[#0b0b12] z-10">
+        <div className="w-12 flex-shrink-0" />
         {days.map((day) => (
           <div
             key={day.toISOString()}
             className={cn(
-              "flex-1 text-center py-2 text-sm font-medium",
-              isToday(day) ? "text-blue-600" : "text-gray-600"
+              "flex-1 text-center py-2 text-sm font-medium border-l border-white/5",
+              isToday(day) ? "bg-[#23143c] text-[#9e65ff]" : "text-white/55"
             )}
           >
             <div className={cn(
-              "inline-flex flex-col items-center",
-              isToday(day) && "bg-blue-50 rounded-lg px-2 py-1"
+              "inline-flex flex-col items-center justify-center min-w-12",
+              isToday(day) && "rounded-xl"
             )}>
-              <span className="text-xs uppercase tracking-wide">
+              <span className="text-[11px] uppercase tracking-wide">
                 {format(day, "EEE")}
               </span>
-              <span className={cn("text-xl font-bold leading-none", isToday(day) ? "text-blue-600" : "text-gray-900")}>
-                {format(day, "d")}
+              <span className={cn("text-2xl font-bold leading-none mt-0.5", isToday(day) ? "text-[#9f62ff]" : "text-white")}> 
+                {format(day, "dd")}
               </span>
             </div>
           </div>
@@ -101,6 +91,7 @@ export const CalendarGrid = memo(function CalendarGrid() {
               tasks={dayTasks}
               ownerId={isCompanyCalendar ? "company" : (viewUserId ?? currentUser?.id ?? "")}
               isCurrentUser={viewUserId === currentUser?.id}
+              highlight={isToday(day)}
             />
           );
         })}

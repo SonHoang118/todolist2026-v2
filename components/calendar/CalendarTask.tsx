@@ -13,7 +13,7 @@ import { useDragTask } from "@/hooks/useDragTask";
 import { useResizeTask } from "@/hooks/useResizeTask";
 import { useUIStore } from "@/store/uiStore";
 import { TaskResizeHandle } from "./TaskResizeHandle";
-import { TaskStatus } from "@/lib/types";
+import { TaskStatus, TaskType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const STATUS_OPACITY: Record<TaskStatus, string> = {
@@ -40,7 +40,7 @@ export const CalendarTask = memo(function CalendarTask({
   dimmed,
 }: CalendarTaskProps) {
   const { openEditTask, openEditCompanyTask } = useUIStore();
-  const { handleMouseDown: handleDragStart } = useDragTask(task, {
+  const { handleMouseDown: handleDragStart, handleTouchStart } = useDragTask(task, {
     columnDate,
     containerRef,
   });
@@ -56,6 +56,11 @@ export const CalendarTask = memo(function CalendarTask({
 
   const status = "status" in task ? (task as TaskDTO).status : null;
   const isDone = status === TaskStatus.DONE;
+  const isAssignedPending =
+    "ownerId" in task &&
+    (task as TaskDTO).type === TaskType.ASSIGNED &&
+    (task as TaskDTO).status === TaskStatus.PENDING;
+  const assigner = "assigner" in task ? (task as TaskDTO).assigner : null;
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
@@ -72,32 +77,48 @@ export const CalendarTask = memo(function CalendarTask({
   return (
     <div
       className={cn(
-        "absolute z-20 rounded overflow-hidden cursor-grab active:cursor-grabbing group",
+        "absolute z-20 rounded-xl overflow-hidden cursor-grab active:cursor-grabbing group border",
         dimmed && "opacity-30",
-        isDone && "opacity-60"
+        isDone && "opacity-60",
+        isAssignedPending ? "border-[#ff2e66]" : "border-black/10"
       )}
       style={{
         top,
         height: Math.max(height, minutesToPx(SNAP_MINUTES)),
         left: `${leftPct + 1}%`,
         width: `${widthPct - 2}%`,
-        backgroundColor: task.color,
+        backgroundColor: isAssignedPending ? "#0b6a4b" : task.color,
       }}
       onMouseDown={handleDragStart}
+      onTouchStart={handleTouchStart}
       onClick={handleClick}
     >
+      {isAssignedPending && (
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-[#ff2e66]" />
+      )}
+
       {/* Content */}
-      <div className="px-1 py-0.5 h-full flex flex-col overflow-hidden pointer-events-none">
-        <p className={cn("text-white text-xs font-medium leading-tight truncate", isDone && "line-through")}>
+      <div className="px-2 py-1.5 h-full flex flex-col overflow-hidden pointer-events-none">
+        <p className={cn("text-white text-[13px] font-semibold leading-tight truncate", isDone && "line-through")}>
           {task.title}
         </p>
-        <p className="text-white/80 text-[10px] leading-tight truncate mt-0.5">
+        <p className="text-white/85 text-[10px] leading-tight truncate mt-0.5">
           {formatTime(new Date(task.startTime))} – {formatTime(new Date(task.endTime))}
         </p>
-        {"assigner" in task && (task as TaskDTO).assigner && (
-          <p className="text-white/70 text-[10px] leading-tight truncate mt-auto">
-            From: {(task as TaskDTO).assigner!.name}
-          </p>
+        {isAssignedPending && (
+          <span className="inline-block mt-auto mb-1 w-fit px-2 py-0.5 text-[10px] rounded-full border border-white/40 text-white/95 font-medium">
+            Dang cho
+          </span>
+        )}
+        {assigner && (
+          <div className="mt-auto flex items-center gap-1.5 text-[10px] text-white/85">
+            <span>from:</span>
+            <img
+              src={assigner.avatarUrl || "https://i.pravatar.cc/40?img=12"}
+              alt={assigner.name}
+              className="w-4 h-4 rounded-full object-cover"
+            />
+          </div>
         )}
       </div>
 

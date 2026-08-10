@@ -5,16 +5,17 @@ import { useCurrentUser } from "@/hooks/useAuth";
 import { useRealtime } from "@/hooks/useRealtime";
 import { useCalendarStore } from "@/store/calendarStore";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { useEffect, useRef, useState } from "react";
 import { CalendarHeader } from "@/components/layout/CalendarHeader";
 import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { DialogManager } from "@/components/dialogs/DialogManager";
+import { SettingsDrawer } from "@/components/layout/SettingsDrawer";
 
 export default function CalendarPage() {
   const { data: currentUser, isLoading } = useCurrentUser();
   const router = useRouter();
   const didInitSelection = useRef(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useRealtime();
 
@@ -43,12 +44,12 @@ export default function CalendarPage() {
   if (!currentUser) return null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
-      <Sidebar />
+    <div className="flex h-screen overflow-hidden bg-[#090a10] text-white">
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <CalendarHeader />
+        <CalendarHeader onOpenSettings={() => setSettingsOpen(true)} />
         <CalendarGrid />
       </div>
+      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <DialogManager />
     </div>
   );

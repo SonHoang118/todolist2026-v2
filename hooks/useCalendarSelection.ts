@@ -92,5 +92,56 @@ export function useCalendarSelection({
     [getMinutesFromMouseY, columnDate, ownerId, onSelect]
   );
 
-  return { selection, handleMouseDown };
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+
+      const startMin = getMinutesFromMouseY(touch.clientY);
+      startMinRef.current = startMin;
+
+      setSelection({ startMin, endMin: startMin + SNAP_MINUTES, active: true });
+
+      const onTouchMove = (te: TouchEvent) => {
+        if (startMinRef.current === null) return;
+        const nextTouch = te.touches[0];
+        if (!nextTouch) return;
+
+        te.preventDefault();
+        const currentMin = getMinutesFromMouseY(nextTouch.clientY);
+        const min = Math.min(startMinRef.current, currentMin);
+        const max = Math.max(startMinRef.current + SNAP_MINUTES, currentMin);
+        setSelection({ startMin: min, endMin: max, active: true });
+      };
+
+      const onTouchEnd = (te: TouchEvent) => {
+        window.removeEventListener("touchmove", onTouchMove);
+        window.removeEventListener("touchend", onTouchEnd);
+
+        if (startMinRef.current === null) return;
+        const touchEnd = te.changedTouches[0];
+        const currentMin = touchEnd
+          ? getMinutesFromMouseY(touchEnd.clientY)
+          : startMinRef.current + SNAP_MINUTES;
+
+        const min = snapMinutes(Math.min(startMinRef.current, currentMin));
+        const max = snapMinutes(
+          Math.max(startMinRef.current + SNAP_MINUTES, currentMin)
+        );
+
+        setSelection(null);
+        startMinRef.current = null;
+
+        const start = minutesToDate(columnDate, min);
+        const end = minutesToDate(columnDate, max);
+        onSelect(start, end, ownerId);
+      };
+
+      window.addEventListener("touchmove", onTouchMove, { passive: false });
+      window.addEventListener("touchend", onTouchEnd);
+    },
+    [getMinutesFromMouseY, columnDate, ownerId, onSelect]
+  );
+
+  return { selection, handleMouseDown, handleTouchStart };
 }
