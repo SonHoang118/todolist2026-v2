@@ -34,7 +34,12 @@ export const useUIStore = create<UIState>((set) => ({
   confirmDeleteType: null,
 
   openCreateTask: (pending) =>
-    set({ dialog: "task", pendingCreate: pending, editingTaskId: null }),
+    set({
+      dialog: pending.ownerId === "company" ? "company-task" : "task",
+      pendingCreate: pending,
+      editingTaskId: null,
+      editingCompanyTaskId: null,
+    }),
 
   openEditTask: (taskId) =>
     set({ dialog: "task", editingTaskId: taskId, pendingCreate: null }),
