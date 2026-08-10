@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Tasks this user owns
+  ownedTasks Task[] @relation("TaskOwner")
+  // Tasks this user assigned to others
+  assignedTasks Task[] @relation("TaskAssigner")
+  // Company tasks created by this user
+  createdCompanyTasks CompanyTask[] @relation("CompanyTaskCreator")
+  // Company tasks last updated by this user
+  updatedCompanyTasks CompanyTask[] @relation("CompanyTaskUpdater")
+  // Company task confirmations
+  companyTaskConfirms CompanyTaskConfirm[]
+
+  @@map("users")
+}
+
+model Task {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  color       String      @default("#3B82F6")
+  startTime   DateTime
+  endTime     DateTime
+  status      TaskStatus  @default(PENDING)
+  label       TaskLabel   @default(DEFAULT)
+  type        TaskType
+
+  ownerId     String
+  owner       User        @relation("TaskOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Only set for ASSIGNED tasks
+  assignerId  String?
+  assigner    User?       @relation("TaskAssigner", fields: [assignerId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("tasks")
+}
+
+model CompanyTask {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  color       String   @default("#8B5CF6")
+  startTime   DateTime
+  endTime     DateTime
+
+  createdById String
+  createdBy   User     @relation("CompanyTaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  updatedById String?
+  updatedBy   User?    @relation("CompanyTaskUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  confirms    CompanyTaskConfirm[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("company_tasks")
+}
+
+model CompanyTaskConfirm {
+  id            String      @id @default(cuid())
+  companyTaskId String
+  companyTask   CompanyTask @relation(fields: [companyTaskId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  confirmedAt   DateTime    @default(now())
+
+  @@unique([companyTaskId, userId])
+  @@map("company_task_confirms")
+}
+
+enum TaskType {
+  PERSONAL
+  ASSIGNED
+}
+
+enum TaskStatus {
+  PENDING
+  ACCEPTED
+  DONE
+}
+
+enum TaskLabel {
+  PERSONAL
+  DEFAULT
+}
