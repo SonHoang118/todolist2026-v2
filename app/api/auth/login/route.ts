@@ -1,10 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/session";
-import { apiError, apiOk, apiUnauthorized } from "@/lib/api-helpers";
+import { apiError, apiOk } from "@/lib/api-helpers";
 import bcrypt from "bcryptjs";
 import { NextRequest } from "next/server";
 import { getSession } from "@/lib/session";
-import { cookies } from "next/headers";
 
 export async function POST(req: NextRequest) {
   try {
@@ -34,7 +32,9 @@ export async function POST(req: NextRequest) {
       avatarUrl: user.avatarUrl,
     });
   } catch (e) {
-    console.error(e);
-    return apiError("Server error", 500);
+    // Log full error so it appears in Vercel Function logs
+    console.error("[login] error:", e instanceof Error ? e.message : e);
+    const msg = e instanceof Error ? e.message : "Server error";
+    return apiError(msg, 500);
   }
 }
