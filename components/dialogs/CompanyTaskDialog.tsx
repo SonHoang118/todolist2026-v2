@@ -59,7 +59,14 @@ export function CompanyTaskDialog({ task }: CompanyTaskDialogProps) {
   const handleSave = useCallback(async () => {
     if (!title.trim()) { setError("Title is required"); return; }
     if (!startTime || !endTime) { setError("Time required"); return; }
-    if (new Date(endTime) <= new Date(startTime)) { setError("End must be after start"); return; }
+
+    const startDate = new Date(startTime);
+    const endDate = new Date(endTime);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      setError("Invalid date/time format");
+      return;
+    }
+    if (endDate <= startDate) { setError("End must be after start"); return; }
 
     setSaving(true);
     setError(null);
@@ -72,8 +79,8 @@ export function CompanyTaskDialog({ task }: CompanyTaskDialogProps) {
             title,
             description,
             color,
-            startTime: new Date(startTime).toISOString(),
-            endTime: new Date(endTime).toISOString(),
+            startTime: startDate.toISOString(),
+            endTime: endDate.toISOString(),
           },
         });
       } else if (pendingCreate) {
@@ -81,8 +88,8 @@ export function CompanyTaskDialog({ task }: CompanyTaskDialogProps) {
           title,
           description,
           color,
-          startTime: new Date(startTime).toISOString(),
-          endTime: new Date(endTime).toISOString(),
+          startTime: startDate.toISOString(),
+          endTime: endDate.toISOString(),
         });
       }
       closeDialog();

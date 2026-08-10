@@ -27,44 +27,63 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let currentUser;
   try {
-    currentUser = await requireAuth();
-  } catch {
-    return apiUnauthorized();
+    let currentUser;
+    try {
+      currentUser = await requireAuth();
+    } catch {
+      return apiUnauthorized();
+    }
+
+    const { id } = await params;
+    const task = await prisma.companyTask.findUnique({ where: { id } });
+    if (!task) return apiNotFound("Company task");
+
+    // Only the creator can edit
+    if (task.createdById !== currentUser.id) return apiForbidden();
+
+    const body = (await req.json()) as UpdateCompanyTaskInput;
+
+    if (body.startTime) {
+      const start = new Date(body.startTime);
+      if (Number.isNaN(start.getTime())) {
+        return apiError("Invalid startTime format", 400);
+      }
+    }
+
+    if (body.endTime) {
+      const end = new Date(body.endTime);
+      if (Number.isNaN(end.getTime())) {
+        return apiError("Invalid endTime format", 400);
+      }
+    }
+
+    if (body.startTime && body.endTime) {
+      const start = new Date(body.startTime);
+      const end = new Date(body.endTime);
+      if (end <= start) return apiError("endTime must be after startTime");
+    }
+
+    const updated = await prisma.companyTask.update({
+      where: { id },
+      data: {
+        title: body.title,
+        description: body.description,
+        color: body.color,
+        startTime: body.startTime ? new Date(body.startTime) : undefined,
+        endTime: body.endTime ? new Date(body.endTime) : undefined,
+        updatedById: currentUser.id,
+      },
+      include: COMPANY_TASK_INCLUDE,
+    });
+
+    broadcast({ type: "companytask:updated", payload: updated });
+
+    return apiOk(updated);
+  } catch (e) {
+    console.error("[company-tasks/:id][PATCH] error:", e);
+    return apiError("Failed to update company task", 500);
   }
-
-  const { id } = await params;
-  const task = await prisma.companyTask.findUnique({ where: { id } });
-  if (!task) return apiNotFound("Company task");
-
-  // Only the creator can edit
-  if (task.createdById !== currentUser.id) return apiForbidden();
-
-  const body = (await req.json()) as UpdateCompanyTaskInput;
-
-  if (body.startTime && body.endTime) {
-    const start = new Date(body.startTime);
-    const end = new Date(body.endTime);
-    if (end <= start) return apiError("endTime must be after startTime");
-  }
-
-  const updated = await prisma.companyTask.update({
-    where: { id },
-    data: {
-      title: body.title,
-      description: body.description,
-      color: body.color,
-      startTime: body.startTime ? new Date(body.startTime) : undefined,
-      endTime: body.endTime ? new Date(body.endTime) : undefined,
-      updatedById: currentUser.id,
-    },
-    include: COMPANY_TASK_INCLUDE,
-  });
-
-  broadcast({ type: "companytask:updated", payload: updated });
-
-  return apiOk(updated);
 }
 
 /** DELETE /api/company-tasks/[id] */
@@ -72,21 +91,26 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let currentUser;
   try {
-    currentUser = await requireAuth();
-  } catch {
-    return apiUnauthorized();
+    let currentUser;
+    try {
+      currentUser = await requireAuth();
+    } catch {
+      return apiUnauthorized();
+    }
+
+    const { id } = await params;
+    const task = await prisma.companyTask.findUnique({ where: { id } });
+    if (!task) return apiNotFound("Company task");
+
+    if (task.createdById !== currentUser.id) return apiForbidden();
+
+    await prisma.companyTask.delete({ where: { id } });
+    broadcast({ type: "companytask:deleted", payload: { id } });
+
+    return apiOk({ ok: true });
+  } catch (e) {
+    console.error("[company-tasks/:id][DELETE] error:", e);
+    return apiError("Failed to delete company task", 500);
   }
-
-  const { id } = await params;
-  const task = await prisma.companyTask.findUnique({ where: { id } });
-  if (!task) return apiNotFound("Company task");
-
-  if (task.createdById !== currentUser.id) return apiForbidden();
-
-  await prisma.companyTask.delete({ where: { id } });
-  broadcast({ type: "companytask:deleted", payload: { id } });
-
-  return apiOk({ ok: true });
 }

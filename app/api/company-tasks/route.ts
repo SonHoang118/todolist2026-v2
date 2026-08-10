@@ -23,65 +23,85 @@ const COMPANY_TASK_INCLUDE = {
 /** GET /api/company-tasks?from=&to= */
 export async function GET(req: NextRequest) {
   try {
-    await requireAuth();
-  } catch {
-    return apiUnauthorized();
+    try {
+      await requireAuth();
+    } catch {
+      return apiUnauthorized();
+    }
+
+    const { searchParams } = req.nextUrl;
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
+
+    const fromDate = from ? new Date(from) : null;
+    const toDate = to ? new Date(to) : null;
+
+    if ((from && Number.isNaN(fromDate?.getTime())) || (to && Number.isNaN(toDate?.getTime()))) {
+      return apiError("Invalid date format for from/to", 400);
+    }
+
+    const tasks = await prisma.companyTask.findMany({
+      where: {
+        startTime: fromDate ? { gte: fromDate } : undefined,
+        endTime: toDate ? { lte: toDate } : undefined,
+      },
+      include: COMPANY_TASK_INCLUDE,
+      orderBy: { startTime: "asc" },
+    });
+
+    return apiOk(tasks);
+  } catch (e) {
+    console.error("[company-tasks][GET] error:", e);
+    return apiError("Failed to load company tasks", 500);
   }
-
-  const { searchParams } = req.nextUrl;
-  const from = searchParams.get("from");
-  const to = searchParams.get("to");
-
-  const tasks = await prisma.companyTask.findMany({
-    where: {
-      startTime: from ? { gte: new Date(from) } : undefined,
-      endTime: to ? { lte: new Date(to) } : undefined,
-    },
-    include: COMPANY_TASK_INCLUDE,
-    orderBy: { startTime: "asc" },
-  });
-
-  return apiOk(tasks);
 }
 
 /** POST /api/company-tasks */
 export async function POST(req: NextRequest) {
-  let currentUser;
   try {
-    currentUser = await requireAuth();
-  } catch {
-    return apiUnauthorized();
-  }
+    let currentUser;
+    try {
+      currentUser = await requireAuth();
+    } catch {
+      return apiUnauthorized();
+    }
 
-  const body = (await req.json()) as CreateCompanyTaskInput;
-  const { title, description, color, startTime, endTime } = body;
+    const body = (await req.json()) as CreateCompanyTaskInput;
+    const { title, description, color, startTime, endTime } = body;
 
-  if (!title || !startTime || !endTime) {
-    return apiError("title, startTime, endTime are required");
-  }
+    if (!title || !startTime || !endTime) {
+      return apiError("title, startTime, endTime are required");
+    }
 
-  const start = new Date(startTime);
-  const end = new Date(endTime);
-  if (end <= start) return apiError("endTime must be after startTime");
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return apiError("Invalid startTime/endTime format", 400);
+    }
+    if (end <= start) return apiError("endTime must be after startTime");
 
-  const task = await prisma.companyTask.create({
-    data: {
-      title,
-      description,
-      color: color ?? "#8B5CF6",
-      startTime: start,
-      endTime: end,
-      createdById: currentUser.id,
-      updatedById: currentUser.id,
-      // Auto-confirm creator
-      confirms: {
-        create: { userId: currentUser.id },
+    const task = await prisma.companyTask.create({
+      data: {
+        title,
+        description,
+        color: color ?? "#8B5CF6",
+        startTime: start,
+        endTime: end,
+        createdById: currentUser.id,
+        updatedById: currentUser.id,
+        // Auto-confirm creator
+        confirms: {
+          create: { userId: currentUser.id },
+        },
       },
-    },
-    include: COMPANY_TASK_INCLUDE,
-  });
+      include: COMPANY_TASK_INCLUDE,
+    });
 
-  broadcast({ type: "companytask:created", payload: task });
+    broadcast({ type: "companytask:created", payload: task });
 
-  return apiOk(task, 201);
+    return apiOk(task, 201);
+  } catch (e) {
+    console.error("[company-tasks][POST] error:", e);
+    return apiError("Failed to create company task", 500);
+  }
 }

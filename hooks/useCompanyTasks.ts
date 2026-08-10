@@ -8,6 +8,26 @@ import {
 } from "@/lib/types";
 import { format } from "date-fns";
 
+async function getErrorMessage(res: Response, fallback: string) {
+  const contentType = res.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      const data = (await res.json()) as { error?: string; message?: string };
+      return data.error || data.message || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  try {
+    const text = await res.text();
+    return text.trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function useCompanyTasks(from: Date, to: Date) {
   const fromStr = format(from, "yyyy-MM-dd'T'HH:mm:ss");
   const toStr = format(to, "yyyy-MM-dd'T'HH:mm:ss");
@@ -17,7 +37,9 @@ export function useCompanyTasks(from: Date, to: Date) {
     queryFn: async () => {
       const url = `/api/company-tasks?from=${encodeURIComponent(fromStr)}&to=${encodeURIComponent(toStr)}`;
       const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to load company tasks");
+      if (!res.ok) {
+        throw new Error(await getErrorMessage(res, "Failed to load company tasks"));
+      }
       return res.json();
     },
     staleTime: 30_000,
@@ -38,8 +60,7 @@ export function useCreateCompanyTask() {
         body: JSON.stringify(input),
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Failed to create company task");
+        throw new Error(await getErrorMessage(res, "Failed to create company task"));
       }
       return res.json() as Promise<CompanyTaskDTO>;
     },
@@ -65,8 +86,7 @@ export function useUpdateCompanyTask() {
         body: JSON.stringify(data),
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Failed to update company task");
+        throw new Error(await getErrorMessage(res, "Failed to update company task"));
       }
       return res.json() as Promise<CompanyTaskDTO>;
     },
@@ -84,8 +104,7 @@ export function useDeleteCompanyTask() {
         method: "DELETE",
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Failed to delete company task");
+        throw new Error(await getErrorMessage(res, "Failed to delete company task"));
       }
     },
     onSuccess: () => {
@@ -102,8 +121,7 @@ export function useConfirmCompanyTask() {
         method: "POST",
       });
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error ?? "Failed to confirm task");
+        throw new Error(await getErrorMessage(res, "Failed to confirm task"));
       }
       return res.json() as Promise<CompanyTaskDTO>;
     },

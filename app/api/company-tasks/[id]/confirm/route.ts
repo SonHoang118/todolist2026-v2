@@ -25,30 +25,35 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let currentUser;
   try {
-    currentUser = await requireAuth();
-  } catch {
-    return apiUnauthorized();
+    let currentUser;
+    try {
+      currentUser = await requireAuth();
+    } catch {
+      return apiUnauthorized();
+    }
+
+    const { id } = await params;
+    const task = await prisma.companyTask.findUnique({ where: { id } });
+    if (!task) return apiNotFound("Company task");
+
+    // Upsert confirm (idempotent)
+    await prisma.companyTaskConfirm.upsert({
+      where: { companyTaskId_userId: { companyTaskId: id, userId: currentUser.id } },
+      create: { companyTaskId: id, userId: currentUser.id },
+      update: {},
+    });
+
+    const updated = await prisma.companyTask.findUnique({
+      where: { id },
+      include: COMPANY_TASK_INCLUDE,
+    });
+
+    broadcast({ type: "companytask:confirmed", payload: updated });
+
+    return apiOk(updated);
+  } catch (e) {
+    console.error("[company-tasks/:id/confirm][POST] error:", e);
+    return apiError("Failed to confirm company task", 500);
   }
-
-  const { id } = await params;
-  const task = await prisma.companyTask.findUnique({ where: { id } });
-  if (!task) return apiNotFound("Company task");
-
-  // Upsert confirm (idempotent)
-  await prisma.companyTaskConfirm.upsert({
-    where: { companyTaskId_userId: { companyTaskId: id, userId: currentUser.id } },
-    create: { companyTaskId: id, userId: currentUser.id },
-    update: {},
-  });
-
-  const updated = await prisma.companyTask.findUnique({
-    where: { id },
-    include: COMPANY_TASK_INCLUDE,
-  });
-
-  broadcast({ type: "companytask:confirmed", payload: updated });
-
-  return apiOk(updated);
 }
