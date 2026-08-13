@@ -18,9 +18,9 @@ export const TaskResizeHandle = memo(function TaskResizeHandle({
   return (
     <div
       className={`
-        absolute left-0 right-0 h-2 cursor-ns-resize z-30
+        absolute left-0 right-0 h-3 cursor-ns-resize z-30
         ${visible ? "opacity-100" : "opacity-0 group-hover:opacity-100"}
-        ${edge === "top" ? "top-0" : "bottom-0"}
+        ${edge === "top" ? "-top-1.5" : "-bottom-1.5"}
       `}
       onMouseDown={(e) => {
         e.stopPropagation();

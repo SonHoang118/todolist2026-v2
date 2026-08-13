@@ -234,7 +234,7 @@ export const CalendarTask = memo(function CalendarTask({
 
       {isGhostSource && floatingX !== null && floatingY !== null && (
         <div
-          className="fixed z-50 pointer-events-none rounded-xl border border-white/20 bg-[#0b6a4b] text-white shadow-[0_10px_24px_rgba(0,0,0,0.40)]"
+          className="fixed z-50 pointer-events-none rounded-xl border border-white/20 text-white shadow-[0_10px_24px_rgba(0,0,0,0.40)]"
           style={{
             width: floatingWidth ?? undefined,
             height: floatingHeight ?? undefined,
@@ -242,6 +242,7 @@ export const CalendarTask = memo(function CalendarTask({
             top: floatingY - (floatingHeight ?? 40) / 2,
             transform: `rotate(${floatingTilt.toFixed(2)}deg) scale(1.015)`,
             transformOrigin: "center center",
+            backgroundColor: isAssignedPending ? "#0b6a4b" : task.color,
           }}
         >
           <div className="px-2 py-1.5 h-full flex flex-col">
