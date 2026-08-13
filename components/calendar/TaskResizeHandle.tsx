@@ -18,9 +18,10 @@ export const TaskResizeHandle = memo(function TaskResizeHandle({
   return (
     <div
       className={`
-        absolute left-0 right-0 h-3 cursor-ns-resize z-30
+        absolute left-0 right-0 h-8 cursor-ns-resize z-30
         ${visible ? "opacity-100" : "opacity-0 group-hover:opacity-100"}
-        ${edge === "top" ? "-top-1.5" : "-bottom-1.5"}
+        ${edge === "top" ? "-top-8" : "-bottom-8"}
+        flex items-center justify-center
       `}
       onMouseDown={(e) => {
         e.stopPropagation();
@@ -31,7 +32,7 @@ export const TaskResizeHandle = memo(function TaskResizeHandle({
         onTouchStart?.(e);
       }}
     >
-      <div className="mx-auto mt-0.5 w-8 h-1 bg-white/50 rounded-full" />
+      <div className={`mx-auto w-8 h-1 bg-white/50 rounded-full ${edge === "top" ? "mb-1" : "mt-1"}`} />
     </div>
   );
 });
